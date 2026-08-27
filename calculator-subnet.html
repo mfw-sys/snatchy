@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subnet &amp; VLAN IP Calculator</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --yellow:#FFC349;
+    --purple:#525EA7;
+    --blue:#5FACD3;
+    --light-blue:#97DDE9;
+    --ink:#1f2937;
+    --paper:#FBFAF6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    background-color:var(--paper);
+    background-image:
+      linear-gradient(rgba(31,41,55,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(31,41,55,0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color:var(--ink);
+    font-family:'Montserrat',sans-serif;
+  }
+  .font-display{font-family:'Bebas Neue',sans-serif; letter-spacing:0.03em;}
+
+  .pixel-border{
+    border:3px solid var(--ink);
+    box-shadow:5px 5px 0 var(--ink);
+    background:#fff;
+  }
+  .pixel-border-sm{
+    border:2px solid var(--ink);
+    box-shadow:3px 3px 0 var(--ink);
+    background:#fff;
+  }
+  .pixel-button{
+    border:3px solid var(--ink);
+    box-shadow:4px 4px 0 var(--ink);
+    transition: transform .06s linear, box-shadow .06s linear;
+    font-family:'Montserrat',sans-serif;
+    font-weight:700;
+  }
+  .pixel-button:active{
+    transform:translate(4px,4px);
+    box-shadow:0 0 0 var(--ink);
+  }
+  .pixel-button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+  }
+  .tab-btn{
+    border:3px solid var(--ink);
+    font-family:'Bebas Neue',sans-serif;
+    letter-spacing:0.05em;
+    background:#fff;
+    box-shadow:4px 4px 0 var(--ink);
+  }
+  .tab-btn.active{
+    background:var(--purple);
+    color:#fff;
+    transform:translate(2px,2px);
+    box-shadow:2px 2px 0 var(--ink);
+  }
+  input[type="text"], input[type="number"], select{
+    border:2px solid var(--ink);
+    background:#fff;
+    font-family:'Montserrat',sans-serif;
+  }
+  input:focus, select:focus{
+    outline:3px solid var(--yellow);
+    outline-offset:0;
+  }
+  .badge{
+    border:2px solid var(--ink);
+    box-shadow:2px 2px 0 var(--ink);
+    font-family:'Montserrat',sans-serif;
+    font-weight:700;
+  }
+  table{border-collapse:separate; border-spacing:0;}
+  th{
+    background:var(--purple);
+    color:#fff;
+    font-family:'Montserrat',sans-serif;
+    font-weight:700;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    position:sticky;
+    top:0;
+    z-index:5;
+  }
+  td, th{
+    border:1px solid var(--ink);
+    padding:0.5rem 0.6rem;
+    white-space:nowrap;
+  }
+  .bit-net{ background:var(--purple); }
+  .bit-host{ background:var(--light-blue); }
+  .status-ok{ color:#166534; font-weight:700; }
+  .status-bad{ background:#FEE2E2 !important; }
+  .scrollbar-thin::-webkit-scrollbar{height:10px; width:10px;}
+  .scrollbar-thin::-webkit-scrollbar-thumb{background:var(--ink); border:2px solid var(--paper);}
+  .fade-toast{animation:fadein .15s ease-out;}
+  @keyframes fadein{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:translateY(0);}}
+  .stat-card{
+    border:3px solid var(--ink);
+    box-shadow:4px 4px 0 var(--ink);
+    background:#fff;
+  }
+  .mono{font-variant-numeric:tabular-nums;}
+  ::selection{ background: var(--yellow); }
+</style>
+</head>
+<body class="min-h-screen pb-16">
+
+<!-- HEADER -->
+<header class="pixel-border m-3 md:m-6 p-5 md:p-8" style="background:var(--purple);">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div class="flex items-center gap-4">
+      <div class="pixel-border-sm p-3" style="background:var(--yellow);">
+        <i data-lucide="network" class="w-9 h-9" style="color:var(--ink);"></i>
+      </div>
+      <div>
+        <h1 class="font-display text-4xl md:text-6xl leading-[0.85] text-white">SUBNET &amp; VLAN<br>IP CALCULATOR</h1>
+        <p class="mt-2 text-white/90 text-sm md:text-base font-medium">IPv4 subnetting, VLSM allocation &amp; VLAN planning made simple</p>
+      </div>
+    </div>
+    <div class="flex md:flex-col items-start md:items-end gap-2">
+      <span class="badge inline-block px-3 py-1 text-xs" style="background:var(--yellow);">IPv4 TOOL</span>
+      <span class="badge inline-block px-3 py-1 text-xs text-white" style="background:var(--blue);">100% CLIENT-SIDE</span>
+    </div>
+  </div>
+</header>
+
+<main class="mx-3 md:mx-6 space-y-6">
+
+  <!-- MODE SELECTOR -->
+  <section class="flex flex-wrap gap-3">
+    <button data-mode="basic" class="tab-btn mode-tab px-5 py-3 text-lg flex items-center gap-2" aria-label="Basic Subnet mode">
+      <i data-lucide="calculator" class="w-5 h-5"></i> BASIC SUBNET
+    </button>
+    <button data-mode="vlsm" class="tab-btn mode-tab px-5 py-3 text-lg flex items-center gap-2" aria-label="VLSM Subnetting mode">
+      <i data-lucide="git-branch" class="w-5 h-5"></i> VLSM SUBNETTING
+    </button>
+    <button data-mode="vlan" class="tab-btn mode-tab px-5 py-3 text-lg flex items-center gap-2" aria-label="VLAN Planner mode">
+      <i data-lucide="layers" class="w-5 h-5"></i> VLAN PLANNER
+    </button>
+    <div class="ml-auto flex gap-2">
+      <button id="resetBtn" class="pixel-button px-4 py-3 flex items-center gap-2 bg-white text-sm" title="Reset to sample data" aria-label="Reset to sample data">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i> RESET
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ BASIC MODE ============ -->
+  <section id="panel-basic" class="mode-panel space-y-6">
+    <div class="pixel-border p-5 md:p-6">
+      <h2 class="font-display text-2xl mb-4 flex items-center gap-2"><i data-lucide="server" class="w-5 h-5"></i> INPUT</h2>
+      <div class="grid md:grid-cols-3 gap-4 items-start">
+        <div>
+          <label class="block text-xs font-bold uppercase mb-1" for="basicIp">IP Address</label>
+          <input id="basicIp" type="text" class="w-full px-3 py-2" placeholder="192.168.1.0" value="192.168.1.0">
+          <p id="basicIpError" class="text-xs text-red-600 font-semibold mt-1 hidden">Invalid IPv4 address</p>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase mb-1" for="basicCidr">CIDR</label>
+          <select id="basicCidr" class="w-full px-3 py-2"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase mb-1" for="basicMask">Subnet Mask</label>
+          <input id="basicMask" type="text" class="w-full px-3 py-2" placeholder="255.255.255.0">
+          <p id="basicMaskError" class="text-xs text-red-600 font-semibold mt-1 hidden">Invalid subnet mask</p>
+        </div>
+      </div>
+      <div class="mt-5">
+        <button id="basicCalcBtn" class="pixel-button px-6 py-3 text-white flex items-center gap-2" style="background:var(--purple);">
+          <i data-lucide="calculator" class="w-5 h-5"></i> CALCULATE
+        </button>
+      </div>
+      <p id="basicNote" class="mt-3 text-sm bg-yellow-50 pixel-border-sm p-3 hidden"></p>
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <div id="basicSummary" class="grid grid-cols-2 md:grid-cols-5 gap-3"></div>
+
+    <!-- RESULT CARDS -->
+    <div class="pixel-border p-5 md:p-6">
+      <h2 class="font-display text-2xl mb-4 flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i> RESULT</h2>
+      <div id="basicResultGrid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+    </div>
+
+    <!-- IP INFO -->
+    <div class="pixel-border p-5 md:p-6">
+      <h2 class="font-display text-2xl mb-4 flex items-center gap-2"><i data-lucide="globe" class="w-5 h-5"></i> IP INFORMATION</h2>
+      <div id="basicInfoGrid" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm"></div>
+    </div>
+
+    <!-- BINARY -->
+    <div class="pixel-border p-5 md:p-6">
+      <h2 class="font-display text-2xl mb-4 flex items-center gap-2"><i data-lucide="binary" class="w-5 h-5"></i> BINARY REPRESENTATION</h2>
+      <div id="basicBinary" class="space-y-4 font-mono text-sm md:text-base"></div>
+      <div class="flex gap-4 mt-4 text-xs font-semibold">
+        <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 bit-net border border-black"></span> NETWORK BITS</span>
+        <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 bit-host border border-black"></span> HOST BITS</span>
+      </div>
+    </div>
+
+    <!-- CIDR VISUAL -->
+    <div class="pixel-border p-5 md:p-6">
+      <h2 class="font-display text-2xl mb-4 flex items-center gap-2"><i data-lucide="layers" class="w-5 h-5"></i> CIDR VISUALIZATION (32 BITS)</h2>
+      <div id="basicCidrVisual"></div>
+    </div>
+
+    <!-- HOW IT WORKS -->
+    <div class="pixel-border p-5 md:p-6" style="background:var(--light-blue);">
+      <h2 class="font-display text-2xl mb-3 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5"></i> HOW IT WORKS</h2>
+      <p id="basicExplain" class="text-sm font-medium leading-relaxed"></p>
+    </div>
+  </section>
+
+  <!-- ============ VLSM MODE ============ -->
+  <section id="panel-vlsm" class="mode-panel space-y-6 hidden">
+    <div class="pixel-border p-5 md:p-6">
+      <h2 class="font-display text-2xl mb-4 flex items-center gap-2"><i data-lucide="git-branch" class="w-5 h-5"></i> BASE NETWORK</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-bold uppercase mb-1" for="vlsmIp">Base IP Address</label>
+          <input id="vlsmIp" type="text" class="w-full px-3 py-2" value="192.168.1.0">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase mb-1" for="vlsmCidr">Base CIDR</label>
+          <select id="vlsmCidr" class="w-full px-3 py-2"></select>
+        </div>
+      </div>
+      <p id="vlsmBaseError" class="text-xs text-red-600 font-semibold mt-2 hidden">Invalid base network</p>
+    </div>
+
+    <div class="pixel-border p-5 md:p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-display text-2xl flex items-center gap-2"><i data-lucide="layers" class="w-5 h-5"></i> SUBNET REQUIREMENTS</h2>
+        <button id="vlsmAddRow" class="pixel-button px-4 py-2 text-sm flex items-center gap-1 bg-white">
+          <i data-lucide="plus" class="w-4 h-4"></i> ADD SUBNET
+        </button>
+      </div>
+      <div class="overflow-x-auto scrollbar-thin">
+        <table class="w-full text-sm min-w-[500px]">
+          <thead><tr>
+            <th>Subnet Name</th><th>Hosts Required</th><th></th>
+          </tr></thead>
+          <tbody id="vlsmReqBody"></tbody>
+        </table>
+      </div>
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        <label class="text-xs font-bold uppercase" for="vlsmGateway">Gateway Strategy</label>
+        <select id="vlsmGateway" class="px-3 py-2 text-sm">
+          <option value="first">First Usable</option>
+          <option value="last">Last Usable</option>
+          <option value="none">None</option>
+        </select>
+        <button id="vlsmCalcBtn" class="pixel-button px-6 py-3 text-white flex items-center gap-2 ml-auto" style="background:var(--purple);">
+          <i data-lucide="calculator" class="w-5 h-5"></i> CALCULATE VLSM
+        </button>
+      </div>
+      <p id="vlsmError" class="mt-3 text-sm bg-red-50 text-red-700 pixel-border-sm p-3 hidden font-semibold"></p>
+    </div>
+
+    <div id="vlsmSummary" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+
+    <div class="pixel-border p-5 md:p-6">
+      <h2 class="font-display text-2xl mb-4 flex items-center gap-2"><i data-lucide="layers" class="w-5 h-5"></i> ADDRESS SPACE VISUALIZATION</h2>
+      <div id="vlsmAddressSpace"></div>
+    </div>
+
+    <div class="pixel-border p-5 md:p-6">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 class="font-display text-2xl flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i> VLSM ALLOCATION TABLE</h2>
+        <div class="flex gap-2">
+          <button id="vlsmExportCsv" class="pixel-button px-3 py-2 text-xs flex items-center gap-1 bg-white"><i data-lucide="download" class="w-4 h-4"></i> CSV</button>
+          <button id="vlsmExportJson" class="pixel-button px-3 py-2 text-xs flex items-center gap-1 bg-white"><i data-lucide="download" class="w-4 h-4"></i> JSON</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto scrollbar-thin max-h-[420px] overflow-y-auto">
+        <table class="w-full text-xs md:text-sm min-w-[1200px]" id="vlsmResultTable">
+          <thead><tr>
+            <th>#</th><th>Name</th><th>Hosts Req.</th><th>CIDR</th><th>Subnet Mask</th><th>Network</th>
+            <th>First Host</th><th>Last Host</th><th>Broadcast</th><th>Usable</th><th>Gateway</th><th>Status</th>
+          </tr></thead>
+          <tbody id="vlsmResultBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="pixel-border p-5 md:p-6" style="background:var(--light-blue);">
+      <h2 class="font-display text-2xl mb-3 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5"></i> HOW IT WORKS</h2>
+      <p class="text-sm font-medium leading-relaxed">VLSM allocates larger networks first, then assigns smaller networks from the remaining address space. Each subnet is sized to the smallest block that satisfies its host requirement, aligned to a valid network boundary, so no address space is wasted and no allocation overlaps another.</p>
+    </div>
+  </section>
+
+  <!-- ============ VLAN MODE ============ -->
+  <section id="panel-vlan" class="mode-panel space-y-6 hidden">
+    <div class="pixel-border p-5 md:p-6">
+      <h2 class="font-display text-2xl mb-4 flex items-center gap-2"><i data-lucide="cable" class="w-5 h-5"></i> BASE NETWORK &amp; VLAN SETTINGS</h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-bold uppercase mb-1" for="vlanIp">Base IP Address</label>
+          <input id="vlanIp" type="text" class="w-full px-3 py-2" value="10.10.0.0">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase mb-1" for="vlanCidr">Base CIDR</label>
+          <select id="vlanCidr" class="w-full px-3 py-2"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase mb-1" for="vlanStart">Starting VLAN ID</label>
+          <input id="vlanStart" type="number" min="1" max="4094" class="w-full px-3 py-2" value="10">
+        </div>
+      </div>
+      <p id="vlanBaseError" class="text-xs text-red-600 font-semibold mt-2 hidden">Invalid base network</p>
+    </div>
+
+    <div class="pixel-border p-5 md:p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-display text-2xl flex items-center gap-2"><i data-lucide="layers" class="w-5 h-5"></i> VLAN REQUIREMENTS</h2>
+        <button id="vlanAddRow" class="pixel-button px-4 py-2 text-sm flex items-center gap-1 bg-white">
+          <i data-lucide="plus" class="w-4 h-4"></i> ADD VLAN
+        </button>
+      </div>
+      <div class="overflow-x-auto scrollbar-thin">
+        <table class="w-full text-sm min-w-[500px]">
+          <thead><tr>
+            <th>VLAN Name</th><th>Hosts Required</th><th></th>
+          </tr></thead>
+          <tbody id="vlanReqBody"></tbody>
+        </table>
+      </div>
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        <label class="text-xs font-bold uppercase" for="vlanGateway">Gateway Strategy</label>
+        <select id="vlanGateway" class="px-3 py-2 text-sm">
+          <option value="first">First Usable</option>
+          <option value="last">Last Usable</option>
+          <option value="none">None</option>
+        </select>
+        <button id="vlanCalcBtn" class="pixel-button px-6 py-3 text-white flex items-center gap-2 ml-auto" style="background:var(--purple);">
+          <i data-lucide="calculator" class="w-5 h-5"></i> CALCULATE VLAN PLAN
+        </button>
+      </div>
+      <p id="vlanError" class="mt-3 text-sm bg-red-50 text-red-700 pixel-border-sm p-3 hidden font-semibold"></p>
+    </div>
+
+    <div id="vlanSummary" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+
+    <div class="pixel-border p-5 md:p-6">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 class="font-display text-2xl flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i> VLAN ALLOCATION TABLE</h2>
+        <div class="flex gap-2">
+          <button id="vlanExportCsv" class="pixel-button px-3 py-2 text-xs flex items-center gap-1 bg-white"><i data-lucide="download" class="w-4 h-4"></i> CSV</button>
+          <button id="vlanExportJson" class="pixel-button px-3 py-2 text-xs flex items-center gap-1 bg-white"><i data-lucide="download" class="w-4 h-4"></i> JSON</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto scrollbar-thin max-h-[420px] overflow-y-auto">
+        <table class="w-full text-xs md:text-sm min-w-[1300px]" id="vlanResultTable">
+          <thead><tr>
+            <th>VLAN ID</th><th>VLAN Name</th><th>Hosts Req.</th><th>Network</th><th>CIDR</th><th>Subnet Mask</th>
+            <th>Gateway</th><th>First Host</th><th>Last Host</th><th>Broadcast</th><th>Usable</th><th>Status</th>
+          </tr></thead>
+          <tbody id="vlanResultBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="mx-3 md:mx-6 mt-8 text-center text-xs text-gray-500 font-medium pb-4">
+  All calculations run 100% locally in your browser. No data leaves your device.
+</footer>
+
+<div id="toast" class="fixed bottom-6 right-6 pixel-border-sm px-4 py-2 text-sm font-bold hidden fade-toast" style="background:var(--yellow); z-index:50;"></div>
+
+<script>
+"use strict";
+/* ========================================
+   APP STATE
+======================================== */
+const STORAGE_KEY = "subnetVlanCalcState";
+
+function defaultState(){
+  return {
+    mode: "basic",
+    basic: { ip: "192.168.1.0", cidr: 24 },
+    vlsm: {
+      ip: "192.168.1.0",
+      cidr: 24,
+      gateway: "first",
+      requirements: [
+        { id: uid(), name: "Branch A", hosts: 60 },
+        { id: uid(), name: "Branch B", hosts: 30 },
+        { id: uid(), name: "Branch C", hosts: 20 },
+        { id: uid(), name: "Branch D", hosts: 10 }
+      ]
+    },
+    vlan: {
+      ip: "10.10.0.0",
+      cidr: 16,
+      vlanStart: 10,
+      gateway: "first",
+      requirements: [
+        { id: uid(), name: "Management", hosts: 20 },
+        { id: uid(), name: "Office", hosts: 50 },
+        { id: uid(), name: "Guest", hosts: 100 },
+        { id: uid(), name: "CCTV", hosts: 40 },
+        { id: uid(), name: "Server", hosts: 30 }
+      ]
+    }
+  };
+}
+
+let uidCounter = 0;
+function uid(){ uidCounter += 1; return "r" + Date.now().toString(36) + uidCounter; }
+let state = loadState();
+
+/* ========================================
+   IP UTILITIES
+======================================== */
+function isValidIPv4(str){
+  if (typeof str !== "string") return false;
+  const parts = str.trim().split(".");
+  if (parts.length !== 4) return false;
+  for (const p of parts){
+    if (!/^\d{1,3}$/.test(p)) return false;
+    if (p.length > 1 && p[0] === "0") return false; // no leading zeros
+    const n = Number(p);
+    if (n < 0 || n > 255) return false;
+  }
+  return true;
+}
+
+function ipToInt(ip){
+  const parts = ip.trim().split(".").map(Number);
+  return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
+function intToIp(value){
+  value = value >>> 0;
+  return [
+    (value >>> 24) & 255,
+    (value >>> 16) & 255,
+    (value >>> 8) & 255,
+    value & 255
+  ].join(".");
+}
+
+function intToBinary(value){
+  value = value >>> 0;
+  return value.toString(2).padStart(32, "0");
+}
+
+function octetsBinary(ip){
+  return ip.trim().split(".").map(o => Number(o).toString(2).padStart(8, "0"));
+}
+
+/* ========================================
+   CIDR / MASK UTILITIES
+======================================== */
+function cidrToMaskInt(cidr){
+  cidr = Number(cidr);
+  if (cidr <= 0) return 0;
+  if (cidr >= 32) return 0xFFFFFFFF >>> 0;
+  return (0xFFFFFFFF << (32 - cidr)) >>> 0;
+}
+function cidrToMask(cidr){ return intToIp(cidrToMaskInt(cidr)); }
+
+function isValidMask(maskStr){
+  if (!isValidIPv4(maskStr)) return false;
+  const bin = intToBinary(ipToInt(maskStr));
+  // must be contiguous 1s followed by contiguous 0s
+  return /^1*0*$/.test(bin);
+}
+
+function maskToCidr(maskStr){
+  const bin = intToBinary(ipToInt(maskStr));
+  return (bin.match(/1/g) || []).length;
+}
+
+function getWildcardInt(maskInt){ return (~maskInt) >>> 0; }
+function getWildcardMask(maskInt){ return intToIp(getWildcardInt(maskInt)); }
+
+function getNetworkInt(ipInt, maskInt){ return (ipInt & maskInt) >>> 0; }
+function getBroadcastInt(networkInt, wildcardInt){ return (networkInt | wildcardInt) >>> 0; }
+
+function getUsableHosts(cidr){
+  cidr = Number(cidr);
+  if (cidr === 32) return 1;
+  if (cidr === 31) return 2;
+  const total = Math.pow(2, 32 - cidr);
+  return Math.max(total - 2, 0);
+}
+function getTotalAddresses(cidr){ return Math.pow(2, 32 - Number(cidr)); }
+
+function getHostRange(networkInt, broadcastInt, cidr){
+  cidr = Number(cidr);
+  if (cidr === 32) return { first: networkInt, last: networkInt };
+  if (cidr === 31) return { first: networkInt, last: broadcastInt };
+  return { first: (networkInt + 1) >>> 0, last: (broadcastInt - 1) >>> 0 };
+}
+
+function getNetworkClass(ipInt){
+  const first = (ipInt >>> 24) & 255;
+  if (first < 128) return "A";
+  if (first < 192) return "B";
+  if (first < 224) return "C";
+  if (first < 240) return "D";
+  return "E";
+}
+
+function getIpType(ipInt){
+  const first = (ipInt >>> 24) & 255;
+  const second = (ipInt >>> 16) & 255;
+  if (first === 127) return "LOOPBACK";
+  if (first === 169 && second === 254) return "LINK-LOCAL";
+  if (first >= 224 && first < 240) return "MULTICAST";
+  if (first >= 240) return "RESERVED";
+  return "UNICAST";
+}
+
+function isPrivateIp(ipInt){
+  const first = (ipInt >>> 24) & 255;
+  const second = (ipInt >>> 16) & 255;
+  if (first === 10) return true;
+  if (first === 172 && second >= 16 && second <= 31) return true;
+  if (first === 192 && second === 168) return true;
+  return false;
+}
+
+/* ========================================
+   SINGLE SOURCE OF TRUTH: SUBNET CALC
+======================================== */
+function calculateSubnet(ip, cidr){
+  const ipInt = ipToInt(ip);
+  const maskInt = cidrToMaskInt(cidr);
+  const wildcardInt = getWildcardInt(maskInt);
+  const networkInt = getNetworkInt(ipInt, maskInt);
+  const broadcastInt = getBroadcastInt(networkInt, wildcardInt);
+  const { first, last } = getHostRange(networkInt, broadcastInt, cidr);
+  const usableHosts = getUsableHosts(cidr);
+  const totalAddresses = getTotalAddresses(cidr);
+
+  return {
+    ip,
+    ipInt,
+    cidr: Number(cidr),
+    subnetMask: intToIp(maskInt),
+    maskInt,
+    wildcardMask: intToIp(wildcardInt),
+    wildcardInt,
+    networkAddress: intToIp(networkInt),
+    networkInt,
+    broadcastAddress: intToIp(broadcastInt),
+    broadcastInt,
+    firstHost: intToIp(first),
+    lastHost: intToIp(last),
+    firstHostInt: first,
+    lastHostInt: last,
+    totalAddresses,
+    usableHosts,
+    binaryIP: octetsBinary(ip).join("."),
+    binaryMask: octetsBinary(intToIp(maskInt)).join("."),
+    networkClass: getNetworkClass(ipInt),
+    ipType: getIpType(ipInt),
+    isPrivate: isPrivateIp(ipInt)
+  };
+}
+
+/* ========================================
+   VLSM ENGINE
+======================================== */
+function minPrefixForHosts(hostsRequired){
+  hostsRequired = Math.max(0, Number(hostsRequired) || 0);
+  for (let hostBits = 0; hostBits <= 32; hostBits++){
+    let usable;
+    if (hostBits === 0) usable = 1;
+    else if (hostBits === 1) usable = 2;
+    else usable = Math.pow(2, hostBits) - 2;
+    if (usable >= hostsRequired) return 32 - hostBits;
+  }
+  return 0;
+}
+
+// requirements: [{id,name,hosts,vlanId?}]
+function calculateVLSM(baseIp, baseCidr, requirements, gatewayStrategy){
+  const result = { ok: false, allocations: [], error: null, requiredAddresses: 0, availableAddresses: 0 };
+
+  if (!isValidIPv4(baseIp)){
+    result.error = "Invalid base network IPv4 address.";
+    return result;
+  }
+  const baseCidrNum = Number(baseCidr);
+  if (isNaN(baseCidrNum) || baseCidrNum < 0 || baseCidrNum > 32){
+    result.error = "Base CIDR must be between /0 and /32.";
+    return result;
+  }
+  if (!requirements || requirements.length === 0){
+    result.error = "Add at least one subnet requirement.";
+    return result;
+  }
+  for (const r of requirements){
+    if (!r.name || !r.name.trim()){
+      result.error = "Every subnet needs a name.";
+      return result;
+    }
+    if (isNaN(r.hosts) || r.hosts < 0){
+      result.error = `Invalid host requirement for "${r.name}".`;
+      return result;
+    }
+  }
+
+  const base = calculateSubnet(baseIp, baseCidrNum);
+  result.availableAddresses = base.totalAddresses;
+
+  // sort descending by hosts required, stable (preserve original order on ties)
+  const indexed = requirements.map((r, i) => ({ ...r, _idx: i }));
+  indexed.sort((a, b) => (b.hosts - a.hosts) || (a._idx - b._idx));
+
+  let pointer = base.networkInt;
+  const allocations = [];
+  let requiredTotal = 0;
+
+  for (const req of indexed){
+    const prefix = minPrefixForHosts(req.hosts);
+    const blockSize = Math.pow(2, 32 - prefix);
+    requiredTotal += blockSize;
+
+    // align pointer to block boundary
+    let alignedStart = Math.ceil(pointer / blockSize) * blockSize;
+
+    const networkInt = alignedStart >>> 0;
+    const broadcastInt = (alignedStart + blockSize - 1) >>> 0;
+
+    if (alignedStart + blockSize - 1 > base.broadcastInt){
+      result.ok = false;
+      result.error = "INSUFFICIENT_SPACE";
+      // still compute total required across all to report shortage accurately
+      let remainingReq = 0;
+      for (const rr of indexed){
+        const p = minPrefixForHosts(rr.hosts);
+        remainingReq += Math.pow(2, 32 - p);
+      }
+      result.requiredAddresses = remainingReq;
+      return result;
+    }
+
+    const sub = calculateSubnet(intToIp(networkInt), prefix);
+    let gateway = "-";
+    if (gatewayStrategy === "first") gateway = sub.firstHost;
+    else if (gatewayStrategy === "last") gateway = sub.lastHost;
+
+    allocations.push({
+      id: req.id,
+      name: req.name,
+      hostsRequired: req.hosts,
+      vlanId: req.vlanId,
+      cidr: prefix,
+      subnetMask: sub.subnetMask,
+      network: sub.networkAddress,
+      networkInt: sub.networkInt,
+      broadcastInt: sub.broadcastInt,
+      firstHost: sub.firstHost,
+      lastHost: sub.lastHost,
+      broadcast: sub.broadcastAddress,
+      usableHosts: sub.usableHosts,
+      gateway,
+      blockSize,
+      status: "OK"
+    });
+
+    pointer = (broadcastInt + 1) >>> 0;
+  }
+
+  // overlap detection (defensive check even though sequential alloc shouldn't overlap)
+  for (let i = 0; i < allocations.length; i++){
+    for (let j = i + 1; j < allocations.length; j++){
+      const a = allocations[i], b = allocations[j];
+      const overlap = a.networkInt <= b.broadcastInt && b.networkInt <= a.broadcastInt;
+      if (overlap){
+        allocations[i].status = "OVERLAP";
+        allocations[j].status = "OVERLAP";
+      }
+    }
+  }
+
+  result.ok = !allocations.some(a => a.status === "OVERLAP");
+  result.allocations = allocations;
+  result.requiredAddresses = requiredTotal;
+  result.base = base;
+  if (!result.ok) result.error = "OVERLAP_DETECTED";
+  return result;
+}
+
+/* ========================================
+   VLAN ENGINE
+======================================== */
+function calculateVLANPlan(baseIp, baseCidr, requirements, vlanStart, gatewayStrategy){
+  const result = { ok: false, allocations: [], error: null };
+  const startVlan = Number(vlanStart);
+  if (isNaN(startVlan) || startVlan < 1 || startVlan > 4094){
+    result.error = "VLAN ID must be between 1 and 4094.";
+    return result;
+  }
+
+  const vlsmResult = calculateVLSM(baseIp, baseCidr, requirements, gatewayStrategy);
+  if (!vlsmResult.ok){
+    return vlsmResult;
+  }
+
+  let vlanId = startVlan;
+  for (const alloc of vlsmResult.allocations){
+    if (vlanId > 4094){
+      result.error = "VLAN_RANGE_EXCEEDED";
+      result.ok = false;
+      return result;
+    }
+    alloc.vlanId = vlanId;
+    vlanId += 1;
+  }
+
+  result.ok = true;
+  result.allocations = vlsmResult.allocations;
+  result.base = vlsmResult.base;
+  result.requiredAddresses = vlsmResult.requiredAddresses;
+  result.availableAddresses = vlsmResult.availableAddresses;
+  return result;
+}
+
+/* ========================================
+   VALIDATION HELPERS (UI LEVEL)
+======================================== */
+function validateCidrRange(cidr){
+  const n = Number(cidr);
+  return !isNaN(n) && n >= 0 && n <= 32;
+}
+
+/* ========================================
+   RENDER FUNCTIONS - SHARED
+======================================== */
+function populateCidrSelect(selectEl, selected){
+  selectEl.innerHTML = "";
+  for (let i = 0; i <= 32; i++){
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = "/" + i;
+    if (i === Number(selected)) opt.selected = true;
+    selectEl.appendChild(opt);
+  }
+}
+
+function statCard(label, value, icon, bg){
+  return `<div class="stat-card p-3 md:p-4" style="background:${bg || '#fff'}">
+    <div class="flex items-center gap-2 text-xs font-bold uppercase opacity-70 mb-1">
+      <i data-lucide="${icon}" class="w-4 h-4"></i> ${label}
+    </div>
+    <div class="font-display text-2xl md:text-3xl mono break-all">${value}</div>
+  </div>`;
+}
+
+function resultCard(label, value, id, icon){
+  return `<div class="pixel-border-sm p-3 flex flex-col gap-1">
+    <div class="flex items-center justify-between">
+      <span class="text-xs font-bold uppercase opacity-70 flex items-center gap-1"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i> ${label}</span>
+      <button class="copy-btn" data-copy="${value}" title="Copy ${label}" aria-label="Copy ${label}">
+        <i data-lucide="copy" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="font-display text-xl md:text-2xl mono break-all" id="${id || ''}">${value}</div>
+  </div>`;
+}
+
+function infoRow(label, value){
+  return `<div class="pixel-border-sm p-3">
+    <div class="text-xs font-bold uppercase opacity-70">${label}</div>
+    <div class="font-semibold mono break-all">${value}</div>
+  </div>`;
+}
+
+function attachCopyHandlers(container){
+  container.querySelectorAll(".copy-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const text = btn.getAttribute("data-copy");
+      navigator.clipboard.writeText(text).then(() => {
+        const icon = btn.querySelector("i");
+        icon.setAttribute("data-lucide", "check");
+        lucide.createIcons();
+        showToast("Copied!");
+        setTimeout(() => {
+          icon.setAttribute("data-lucide", "copy");
+          lucide.createIcons();
+        }, 1200);
+      });
+    });
+  });
+}
+
+let toastTimer = null;
+function showToast(msg){
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add("hidden"), 1600);
+}
+
+/* ========================================
+   RENDER: BASIC MODE
+======================================== */
+function renderBasic(){
+  const ipInput = document.getElementById("basicIp");
+  const cidrSelect = document.getElementById("basicCidr");
+  const maskInput = document.getElementById("basicMask");
+  const ipError = document.getElementById("basicIpError");
+
+  ipInput.value = state.basic.ip;
+  populateCidrSelect(cidrSelect, state.basic.cidr);
+  maskInput.value = cidrToMask(state.basic.cidr);
+
+  if (!isValidIPv4(state.basic.ip)){
+    ipError.classList.remove("hidden");
+    document.getElementById("basicSummary").innerHTML = "";
+    document.getElementById("basicResultGrid").innerHTML = "";
+    document.getElementById("basicInfoGrid").innerHTML = "";
+    document.getElementById("basicBinary").innerHTML = "";
+    document.getElementById("basicCidrVisual").innerHTML = "";
+    document.getElementById("basicExplain").textContent = "";
+    return;
+  }
+  ipError.classList.add("hidden");
+
+  const sub = calculateSubnet(state.basic.ip, state.basic.cidr);
+
+  document.getElementById("basicSummary").innerHTML = [
+    statCard("NETWORK", sub.networkAddress + "/" + sub.cidr, "network", "var(--yellow)"),
+    statCard("TOTAL ADDRESSES", sub.totalAddresses.toLocaleString(), "layers", "#fff"),
+    statCard("USABLE HOSTS", sub.usableHosts.toLocaleString(), "server", "#fff"),
+    statCard("SUBNET MASK", sub.subnetMask, "shield", "#fff"),
+    statCard("WILDCARD", sub.wildcardMask, "git-branch", "#fff")
+  ].join("");
+
+  document.getElementById("basicResultGrid").innerHTML = [
+    resultCard("Network Address", sub.networkAddress, "", "network"),
+    resultCard("Broadcast Address", sub.broadcastAddress, "", "router"),
+    resultCard("Subnet Mask", sub.subnetMask, "", "shield"),
+    resultCard("Wildcard Mask", sub.wildcardMask, "", "git-branch"),
+    resultCard("First Usable Host", sub.firstHost, "", "cable"),
+    resultCard("Last Usable Host", sub.lastHost, "", "cable"),
+    resultCard("Total Addresses", sub.totalAddresses.toLocaleString(), "", "layers"),
+    resultCard("Usable Hosts", sub.usableHosts.toLocaleString(), "", "server")
+  ].join("");
+
+  document.getElementById("basicInfoGrid").innerHTML = [
+    infoRow("IP Address", sub.ip),
+    infoRow("CIDR", "/" + sub.cidr),
+    infoRow("Subnet Mask", sub.subnetMask),
+    infoRow("Wildcard Mask", sub.wildcardMask),
+    infoRow("Network Class", "Class " + sub.networkClass),
+    infoRow("IP Type", sub.ipType),
+    infoRow("Private / Public", sub.isPrivate ? "PRIVATE" : "PUBLIC"),
+    infoRow("Binary IP", sub.binaryIP)
+  ].join("");
+
+  const ipOct = octetsBinary(sub.ip);
+  const maskOct = octetsBinary(sub.subnetMask);
+  const netBits = sub.cidr;
+  let bitCount = 0;
+  const ipColored = ipOct.map(oct => oct.split("").map(bit => {
+    const cls = bitCount < netBits ? "bit-net text-white" : "bit-host";
+    bitCount++;
+    return `<span class="${cls} px-0.5">${bit}</span>`;
+  }).join("")).join('<span class="opacity-40">.</span>');
+  bitCount = 0;
+  const maskColored = maskOct.map(oct => oct.split("").map(bit => {
+    const cls = bitCount < netBits ? "bit-net text-white" : "bit-host";
+    bitCount++;
+    return `<span class="${cls} px-0.5">${bit}</span>`;
+  }).join("")).join('<span class="opacity-40">.</span>');
+
+  document.getElementById("basicBinary").innerHTML = `
+    <div>
+      <div class="text-xs font-bold uppercase opacity-70 mb-1">IP Address</div>
+      <div class="pixel-border-sm p-3 leading-loose tracking-wider">${ipColored}</div>
+    </div>
+    <div>
+      <div class="text-xs font-bold uppercase opacity-70 mb-1">Subnet Mask</div>
+      <div class="pixel-border-sm p-3 leading-loose tracking-wider">${maskColored}</div>
+    </div>
+  `;
+
+  const hostBits = 32 - netBits;
+  const netBlocks = Math.min(netBits, 32);
+  const hostBlocks = 32 - netBlocks;
+  document.getElementById("basicCidrVisual").innerHTML = `
+    <div class="flex flex-wrap gap-[2px] mb-2">
+      ${Array.from({length:32}).map((_,i)=>`<span class="w-4 h-6 md:w-5 md:h-7 border border-black ${i < netBlocks ? 'bit-net' : 'bit-host'}"></span>`).join("")}
+    </div>
+    <div class="flex flex-wrap gap-4 text-sm font-semibold mt-2">
+      <span>32 bits total</span>
+      <span class="text-white px-2 py-0.5" style="background:var(--purple);">${netBlocks} network bits</span>
+      <span class="px-2 py-0.5 pixel-border-sm" style="background:var(--light-blue);">${hostBlocks} host bits</span>
+    </div>
+  `;
+
+  let note = "";
+  if (sub.cidr === 31){
+    note = "/31 is commonly used for point-to-point links. Per RFC 3021, both addresses in the block are usable as hosts (no dedicated network or broadcast address).";
+  } else if (sub.cidr === 32){
+    note = "/32 represents a single IPv4 address (host route). There is only one address in this block, used as both network and host.";
+  }
+  const noteEl = document.getElementById("basicNote");
+  if (note){ noteEl.textContent = note; noteEl.classList.remove("hidden"); }
+  else { noteEl.classList.add("hidden"); }
+
+  const total = sub.totalAddresses;
+  const usable = sub.usableHosts;
+  let explain;
+  if (sub.cidr === 32){
+    explain = `/32 means 32 network bits and 0 host bits. 2^0 = 1 total address, representing a single host (no usable-host subtraction applies).`;
+  } else if (sub.cidr === 31){
+    explain = `/31 means ${sub.cidr} network bits and ${hostBits} host bits. 2^${hostBits} = 2 total addresses, both usable as hosts on a point-to-point link.`;
+  } else {
+    explain = `/${sub.cidr} means ${sub.cidr} bits = Network, ${hostBits} bits = Host. 2^${hostBits} = ${total.toLocaleString()} total addresses. ${total.toLocaleString()} − 2 = ${usable.toLocaleString()} usable hosts.`;
+  }
+  document.getElementById("basicExplain").textContent = explain;
+
+  attachCopyHandlers(document.getElementById("basicResultGrid"));
+  lucide.createIcons();
+}
+
+/* ========================================
+   RENDER: VLSM REQUIREMENT ROWS
+======================================== */
+function renderReqRows(bodyEl, requirements, includeVlan){
+  bodyEl.innerHTML = requirements.map(r => `
+    <tr data-id="${r.id}">
+      <td><input type="text" class="req-name w-full px-2 py-1 text-sm" value="${escapeHtml(r.name)}" placeholder="Subnet name"></td>
+      <td><input type="number" min="0" class="req-hosts w-28 px-2 py-1 text-sm" value="${r.hosts}" placeholder="Hosts"></td>
+      <td class="text-center">
+        <button class="req-remove pixel-button px-2 py-1 bg-white" title="Remove subnet" aria-label="Remove subnet">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+      </td>
+    </tr>
+  `).join("");
+  lucide.createIcons();
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* ========================================
+   RENDER: VLSM MODE
+======================================== */
+function renderVlsm(){
+  document.getElementById("vlsmIp").value = state.vlsm.ip;
+  populateCidrSelect(document.getElementById("vlsmCidr"), state.vlsm.cidr);
+  document.getElementById("vlsmGateway").value = state.vlsm.gateway;
+  renderReqRows(document.getElementById("vlsmReqBody"), state.vlsm.requirements, false);
+
+  const baseErrorEl = document.getElementById("vlsmBaseError");
+  const errorEl = document.getElementById("vlsmError");
+  errorEl.classList.add("hidden");
+
+  if (!isValidIPv4(state.vlsm.ip)){
+    baseErrorEl.classList.remove("hidden");
+    document.getElementById("vlsmSummary").innerHTML = "";
+    document.getElementById("vlsmResultBody").innerHTML = "";
+    document.getElementById("vlsmAddressSpace").innerHTML = "";
+    return;
+  }
+  baseErrorEl.classList.add("hidden");
+
+  const result = calculateVLSM(state.vlsm.ip, state.vlsm.cidr, state.vlsm.requirements, state.vlsm.gateway);
+  renderVlsmResult(result);
+}
+
+function renderVlsmResult(result){
+  const summaryEl = document.getElementById("vlsmSummary");
+  const bodyEl = document.getElementById("vlsmResultBody");
+  const spaceEl = document.getElementById("vlsmAddressSpace");
+  const errorEl = document.getElementById("vlsmError");
+
+  if (result.error === "INSUFFICIENT_SPACE"){
+    const shortage = result.requiredAddresses - result.availableAddresses;
+    errorEl.innerHTML = `INSUFFICIENT ADDRESS SPACE<br>
+      Required: ${result.requiredAddresses.toLocaleString()} addresses &nbsp;|&nbsp;
+      Available: ${result.availableAddresses.toLocaleString()} addresses &nbsp;|&nbsp;
+      Shortage: ${Math.max(shortage,0).toLocaleString()} addresses`;
+    errorEl.classList.remove("hidden");
+    summaryEl.innerHTML = "";
+    bodyEl.innerHTML = "";
+    spaceEl.innerHTML = "";
+    return;
+  }
+  if (result.error === "VLAN_RANGE_EXCEEDED"){
+    errorEl.textContent = "VLAN ID RANGE EXCEEDED. Reduce the number of subnets or lower the starting VLAN ID.";
+    errorEl.classList.remove("hidden");
+    summaryEl.innerHTML = "";
+    bodyEl.innerHTML = "";
+    spaceEl.innerHTML = "";
+    return;
+  }
+  if (result.error && result.error !== "OVERLAP_DETECTED"){
+    errorEl.textContent = result.error;
+    errorEl.classList.remove("hidden");
+    summaryEl.innerHTML = "";
+    bodyEl.innerHTML = "";
+    spaceEl.innerHTML = "";
+    return;
+  }
+  errorEl.classList.add("hidden");
+
+  const allocated = result.allocations.reduce((s,a)=>s+a.blockSize,0);
+  const remaining = result.availableAddresses - allocated;
+  const totalHostsReq = result.allocations.reduce((s,a)=>s+Number(a.hostsRequired),0);
+
+  summaryEl.innerHTML = [
+    statCard("TOTAL SUBNETS", result.allocations.length, "layers", "var(--yellow)"),
+    statCard("TOTAL HOSTS REQUIRED", totalHostsReq.toLocaleString(), "server", "#fff"),
+    statCard("ALLOCATED ADDRESSES", allocated.toLocaleString(), "check-circle", "#fff"),
+    statCard("REMAINING ADDRESSES", remaining.toLocaleString(), "globe", "#fff")
+  ].join("");
+
+  bodyEl.innerHTML = result.allocations.map((a,i) => `
+    <tr class="${a.status !== 'OK' ? 'status-bad' : ''}">
+      <td>${String(i+1).padStart(2,"0")}</td>
+      <td class="font-semibold">${escapeHtml(a.name)}</td>
+      <td>${a.hostsRequired}</td>
+      <td>/${a.cidr}</td>
+      <td class="mono">${a.subnetMask}</td>
+      <td class="mono font-semibold">${a.network}</td>
+      <td class="mono">${a.firstHost}</td>
+      <td class="mono">${a.lastHost}</td>
+      <td class="mono">${a.broadcast}</td>
+      <td>${a.usableHosts}</td>
+      <td class="mono">${a.gateway}</td>
+      <td class="${a.status === 'OK' ? 'status-ok' : 'text-red-700 font-bold'}">${a.status}</td>
+    </tr>
+  `).join("");
+
+  // address space visualization
+  const base = result.base;
+  spaceEl.innerHTML = `
+    <div class="text-xs font-bold uppercase opacity-70 mb-2">${base.networkAddress}/${base.cidr} (${base.totalAddresses.toLocaleString()} addresses)</div>
+    <div class="flex w-full h-12 pixel-border-sm overflow-hidden">
+      ${result.allocations.map((a,i) => {
+        const pct = Math.max((a.blockSize / base.totalAddresses) * 100, 0.6);
+        const colors = ["var(--purple)","var(--blue)","var(--yellow)","var(--light-blue)"];
+        const color = colors[i % colors.length];
+        return `<div class="h-full flex items-center justify-center text-[10px] font-bold overflow-hidden border-r border-black" style="width:${pct}%; background:${color};" title="${escapeHtml(a.name)} /${a.cidr}">
+          <span class="truncate px-0.5 ${color==='var(--yellow)' ? 'text-black':'text-white'}">${escapeHtml(a.name)}</span>
+        </div>`;
+      }).join("")}
+      ${remaining > 0 ? `<div class="h-full flex items-center justify-center text-[10px] font-bold bg-gray-200" style="width:${Math.max((remaining/base.totalAddresses)*100,0.6)}%;">Available</div>` : ""}
+    </div>
+  `;
+
+  lucide.createIcons();
+}
+
+/* ========================================
+   RENDER: VLAN MODE
+======================================== */
+function renderVlan(){
+  document.getElementById("vlanIp").value = state.vlan.ip;
+  populateCidrSelect(document.getElementById("vlanCidr"), state.vlan.cidr);
+  document.getElementById("vlanStart").value = state.vlan.vlanStart;
+  document.getElementById("vlanGateway").value = state.vlan.gateway;
+  renderReqRows(document.getElementById("vlanReqBody"), state.vlan.requirements, true);
+
+  const baseErrorEl = document.getElementById("vlanBaseError");
+  const errorEl = document.getElementById("vlanError");
+  errorEl.classList.add("hidden");
+
+  if (!isValidIPv4(state.vlan.ip)){
+    baseErrorEl.classList.remove("hidden");
+    document.getElementById("vlanSummary").innerHTML = "";
+    document.getElementById("vlanResultBody").innerHTML = "";
+    return;
+  }
+  baseErrorEl.classList.add("hidden");
+
+  const result = calculateVLANPlan(state.vlan.ip, state.vlan.cidr, state.vlan.requirements, state.vlan.vlanStart, state.vlan.gateway);
+  renderVlanResult(result);
+}
+
+function renderVlanResult(result){
+  const summaryEl = document.getElementById("vlanSummary");
+  const bodyEl = document.getElementById("vlanResultBody");
+  const errorEl = document.getElementById("vlanError");
+
+  if (result.error === "INSUFFICIENT_SPACE"){
+    const shortage = result.requiredAddresses - (result.availableAddresses || 0);
+    errorEl.innerHTML = `INSUFFICIENT ADDRESS SPACE<br>
+      Required: ${result.requiredAddresses.toLocaleString()} addresses &nbsp;|&nbsp;
+      Shortage: ${Math.max(shortage,0).toLocaleString()} addresses`;
+    errorEl.classList.remove("hidden");
+    summaryEl.innerHTML = "";
+    bodyEl.innerHTML = "";
+    return;
+  }
+  if (result.error === "VLAN_RANGE_EXCEEDED"){
+    errorEl.textContent = "VLAN ID RANGE EXCEEDED. Reduce the number of VLANs or lower the starting VLAN ID.";
+    errorEl.classList.remove("hidden");
+    summaryEl.innerHTML = "";
+    bodyEl.innerHTML = "";
+    return;
+  }
+  if (result.error && result.error !== "OVERLAP_DETECTED"){
+    errorEl.textContent = result.error === "VLAN ID must be between 1 and 4094." ? result.error : result.error;
+    errorEl.classList.remove("hidden");
+    summaryEl.innerHTML = "";
+    bodyEl.innerHTML = "";
+    return;
+  }
+  errorEl.classList.add("hidden");
+
+  const allocated = result.allocations.reduce((s,a)=>s+a.blockSize,0);
+  const totalHostsReq = result.allocations.reduce((s,a)=>s+Number(a.hostsRequired),0);
+
+  summaryEl.innerHTML = [
+    statCard("TOTAL VLANs", result.allocations.length, "layers", "var(--yellow)"),
+    statCard("TOTAL HOSTS REQUIRED", totalHostsReq.toLocaleString(), "server", "#fff"),
+    statCard("ALLOCATED ADDRESSES", allocated.toLocaleString(), "check-circle", "#fff"),
+    statCard("VLAN RANGE", `${result.allocations[0]?.vlanId ?? "-"}–${result.allocations[result.allocations.length-1]?.vlanId ?? "-"}`, "git-branch", "#fff")
+  ].join("");
+
+  bodyEl.innerHTML = result.allocations.map(a => `
+    <tr class="${a.status !== 'OK' ? 'status-bad' : ''}">
+      <td class="font-display text-lg" style="color:var(--purple);">${a.vlanId}</td>
+      <td class="font-semibold">${escapeHtml(a.name)}</td>
+      <td>${a.hostsRequired}</td>
+      <td class="mono font-semibold">${a.network}/${a.cidr}</td>
+      <td>/${a.cidr}</td>
+      <td class="mono">${a.subnetMask}</td>
+      <td class="mono">${a.gateway}</td>
+      <td class="mono">${a.firstHost}</td>
+      <td class="mono">${a.lastHost}</td>
+      <td class="mono">${a.broadcast}</td>
+      <td>${a.usableHosts}</td>
+      <td class="${a.status === 'OK' ? 'status-ok' : 'text-red-700 font-bold'}">${a.status}</td>
+    </tr>
+  `).join("");
+
+  lucide.createIcons();
+}
+
+/* ========================================
+   COPY / EXPORT
+======================================== */
+function exportCsv(allocations, columns, filename){
+  const header = columns.map(c => c.label).join(",");
+  const rows = allocations.map(a => columns.map(c => `"${String(a[c.key] ?? "").replace(/"/g,'""')}"`).join(","));
+  const csv = [header, ...rows].join("\n");
+  downloadBlob(csv, filename, "text/csv");
+}
+
+function exportJson(obj, filename){
+  downloadBlob(JSON.stringify(obj, null, 2), filename, "application/json");
+}
+
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("Exported " + filename);
+}
+
+/* ========================================
+   LOCAL STORAGE
+======================================== */
+function loadState(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    const d = defaultState();
+    return {
+      mode: parsed.mode || d.mode,
+      basic: Object.assign(d.basic, parsed.basic),
+      vlsm: Object.assign(d.vlsm, parsed.vlsm),
+      vlan: Object.assign(d.vlan, parsed.vlan)
+    };
+  } catch(e){
+    return defaultState();
+  }
+}
+
+function saveState(){
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch(e){ /* ignore quota errors */ }
+}
+
+/* ========================================
+   EVENT HANDLERS
+======================================== */
+function setMode(mode){
+  state.mode = mode;
+  document.querySelectorAll(".mode-tab").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
+  });
+  document.getElementById("panel-basic").classList.toggle("hidden", mode !== "basic");
+  document.getElementById("panel-vlsm").classList.toggle("hidden", mode !== "vlsm");
+  document.getElementById("panel-vlan").classList.toggle("hidden", mode !== "vlan");
+  saveState();
+  renderAll();
+}
+
+function renderAll(){
+  if (state.mode === "basic") renderBasic();
+  if (state.mode === "vlsm") renderVlsm();
+  if (state.mode === "vlan") renderVlan();
+}
+
+function initEvents(){
+  document.querySelectorAll(".mode-tab").forEach(btn => {
+    btn.addEventListener("click", () => setMode(btn.dataset.mode));
+  });
+
+  // BASIC
+  document.getElementById("basicIp").addEventListener("input", e => {
+    state.basic.ip = e.target.value;
+    saveState();
+  });
+  document.getElementById("basicCidr").addEventListener("change", e => {
+    state.basic.cidr = Number(e.target.value);
+    saveState();
+    renderBasic();
+  });
+  document.getElementById("basicMask").addEventListener("input", e => {
+    const val = e.target.value;
+    const errorEl = document.getElementById("basicMaskError");
+    if (val && !isValidMask(val)){
+      errorEl.classList.remove("hidden");
+      return;
+    }
+    errorEl.classList.add("hidden");
+    if (val && isValidMask(val)){
+      state.basic.cidr = maskToCidr(val);
+      document.getElementById("basicCidr").value = state.basic.cidr;
+      saveState();
+    }
+  });
+  document.getElementById("basicCalcBtn").addEventListener("click", () => {
+    state.basic.ip = document.getElementById("basicIp").value;
+    saveState();
+    renderBasic();
+  });
+
+  // VLSM
+  document.getElementById("vlsmIp").addEventListener("input", e => { state.vlsm.ip = e.target.value; saveState(); });
+  document.getElementById("vlsmCidr").addEventListener("change", e => { state.vlsm.cidr = Number(e.target.value); saveState(); });
+  document.getElementById("vlsmGateway").addEventListener("change", e => { state.vlsm.gateway = e.target.value; saveState(); });
+  document.getElementById("vlsmAddRow").addEventListener("click", () => {
+    state.vlsm.requirements.push({ id: uid(), name: "New Subnet", hosts: 10 });
+    saveState();
+    renderReqRows(document.getElementById("vlsmReqBody"), state.vlsm.requirements, false);
+  });
+  document.getElementById("vlsmReqBody").addEventListener("click", e => {
+    const btn = e.target.closest(".req-remove");
+    if (!btn) return;
+    const tr = btn.closest("tr");
+    const id = tr.dataset.id;
+    state.vlsm.requirements = state.vlsm.requirements.filter(r => r.id !== id);
+    saveState();
+    renderReqRows(document.getElementById("vlsmReqBody"), state.vlsm.requirements, false);
+  });
+  document.getElementById("vlsmReqBody").addEventListener("input", e => {
+    const tr = e.target.closest("tr");
+    if (!tr) return;
+    const id = tr.dataset.id;
+    const req = state.vlsm.requirements.find(r => r.id === id);
+    if (!req) return;
+    if (e.target.classList.contains("req-name")) req.name = e.target.value;
+    if (e.target.classList.contains("req-hosts")) req.hosts = Number(e.target.value) || 0;
+    saveState();
+  });
+  document.getElementById("vlsmCalcBtn").addEventListener("click", () => renderVlsm());
+  document.getElementById("vlsmExportCsv").addEventListener("click", () => {
+    const result = calculateVLSM(state.vlsm.ip, state.vlsm.cidr, state.vlsm.requirements, state.vlsm.gateway);
+    if (!result.ok){ showToast("Fix errors before exporting"); return; }
+    exportCsv(result.allocations, [
+      {key:"name",label:"Subnet Name"},{key:"hostsRequired",label:"Hosts Required"},
+      {key:"cidr",label:"CIDR"},{key:"subnetMask",label:"Subnet Mask"},{key:"network",label:"Network"},
+      {key:"firstHost",label:"First Host"},{key:"lastHost",label:"Last Host"},{key:"broadcast",label:"Broadcast"},
+      {key:"usableHosts",label:"Usable Hosts"},{key:"gateway",label:"Gateway"},{key:"status",label:"Status"}
+    ], "subnet-allocation.csv");
+  });
+  document.getElementById("vlsmExportJson").addEventListener("click", () => {
+    exportJson({ project: "VLSM", base: { ip: state.vlsm.ip, cidr: state.vlsm.cidr }, gateway: state.vlsm.gateway, requirements: state.vlsm.requirements }, "subnet-project.json");
+  });
+
+  // VLAN
+  document.getElementById("vlanIp").addEventListener("input", e => { state.vlan.ip = e.target.value; saveState(); });
+  document.getElementById("vlanCidr").addEventListener("change", e => { state.vlan.cidr = Number(e.target.value); saveState(); });
+  document.getElementById("vlanStart").addEventListener("input", e => { state.vlan.vlanStart = Number(e.target.value) || 1; saveState(); });
+  document.getElementById("vlanGateway").addEventListener("change", e => { state.vlan.gateway = e.target.value; saveState(); });
+  document.getElementById("vlanAddRow").addEventListener("click", () => {
+    state.vlan.requirements.push({ id: uid(), name: "New VLAN", hosts: 10 });
+    saveState();
+    renderReqRows(document.getElementById("vlanReqBody"), state.vlan.requirements, true);
+  });
+  document.getElementById("vlanReqBody").addEventListener("click", e => {
+    const btn = e.target.closest(".req-remove");
+    if (!btn) return;
+    const tr = btn.closest("tr");
+    const id = tr.dataset.id;
+    state.vlan.requirements = state.vlan.requirements.filter(r => r.id !== id);
+    saveState();
+    renderReqRows(document.getElementById("vlanReqBody"), state.vlan.requirements, true);
+  });
+  document.getElementById("vlanReqBody").addEventListener("input", e => {
+    const tr = e.target.closest("tr");
+    if (!tr) return;
+    const id = tr.dataset.id;
+    const req = state.vlan.requirements.find(r => r.id === id);
+    if (!req) return;
+    if (e.target.classList.contains("req-name")) req.name = e.target.value;
+    if (e.target.classList.contains("req-hosts")) req.hosts = Number(e.target.value) || 0;
+    saveState();
+  });
+  document.getElementById("vlanCalcBtn").addEventListener("click", () => renderVlan());
+  document.getElementById("vlanExportCsv").addEventListener("click", () => {
+    const result = calculateVLANPlan(state.vlan.ip, state.vlan.cidr, state.vlan.requirements, state.vlan.vlanStart, state.vlan.gateway);
+    if (!result.ok){ showToast("Fix errors before exporting"); return; }
+    exportCsv(result.allocations, [
+      {key:"vlanId",label:"VLAN ID"},{key:"name",label:"VLAN Name"},{key:"hostsRequired",label:"Hosts Required"},
+      {key:"network",label:"Network"},{key:"cidr",label:"CIDR"},{key:"subnetMask",label:"Subnet Mask"},
+      {key:"gateway",label:"Gateway"},{key:"firstHost",label:"First Host"},{key:"lastHost",label:"Last Host"},
+      {key:"broadcast",label:"Broadcast"},{key:"usableHosts",label:"Usable Hosts"},{key:"status",label:"Status"}
+    ], "subnet-allocation.csv");
+  });
+  document.getElementById("vlanExportJson").addEventListener("click", () => {
+    exportJson({ project: "VLAN", base: { ip: state.vlan.ip, cidr: state.vlan.cidr }, vlanStart: state.vlan.vlanStart, gateway: state.vlan.gateway, requirements: state.vlan.requirements }, "subnet-project.json");
+  });
+
+  // RESET
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    state = defaultState();
+    saveState();
+    populateCidrSelect(document.getElementById("basicCidr"), state.basic.cidr);
+    populateCidrSelect(document.getElementById("vlsmCidr"), state.vlsm.cidr);
+    populateCidrSelect(document.getElementById("vlanCidr"), state.vlan.cidr);
+    setMode(state.mode);
+    showToast("Reset to sample data");
+  });
+}
+
+/* ========================================
+   INITIALIZATION
+======================================== */
+function init(){
+  lucide.createIcons();
+  populateCidrSelect(document.getElementById("basicCidr"), state.basic.cidr);
+  populateCidrSelect(document.getElementById("vlsmCidr"), state.vlsm.cidr);
+  populateCidrSelect(document.getElementById("vlanCidr"), state.vlan.cidr);
+  initEvents();
+  setMode(state.mode);
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>

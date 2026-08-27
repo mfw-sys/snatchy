@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chart Generator — Retro Pixel</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: '#525EA7',
+          accent:  '#FFC349',
+          info:    '#5FACD3',
+          soft:    '#97DDE9',
+          ink:     '#1f2937',
+          paper:   '#FBF6EC'
+        },
+        fontFamily: {
+          display: ['"Bebas Neue"', 'sans-serif'],
+          body: ['Montserrat', 'sans-serif']
+        }
+      }
+    }
+  };
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<style>
+  :root{ --ink:#1f2937; }
+
+  body{
+    font-family: 'Montserrat', sans-serif;
+    background-color: #FBF6EC;
+    background-image: radial-gradient(#e7ddc4 1px, transparent 1px);
+    background-size: 18px 18px;
+    color: #1f2937;
+  }
+
+  .font-display{ font-family: 'Bebas Neue', sans-serif; letter-spacing: .02em; }
+
+  /* Retro pixel primitives */
+  .pixel-border{ border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); }
+  .pixel-btn{
+    border: 3px solid var(--ink);
+    box-shadow: 4px 4px 0 var(--ink);
+    transition: transform .08s ease, box-shadow .08s ease, background .1s ease;
+  }
+  .pixel-btn:hover{ transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--ink); }
+  .pixel-btn:active{ transform: translate(3px,3px); box-shadow: 1px 1px 0 var(--ink); }
+
+  .pixel-input{ border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); background:#fff; transition: box-shadow .1s ease, border-color .1s ease; }
+  .pixel-input:focus{ outline:none; border-color:#525EA7; box-shadow: 3px 3px 0 #525EA7; }
+
+  .chart-type-btn{ background:#fff; color:#1f2937; }
+  .chart-type-btn.active{ background:#525EA7; color:#fff; }
+
+  .section-label{
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #525EA7;
+  }
+
+  /* Always-wins visibility toggle, regardless of Tailwind utility ordering */
+  .hidden{ display:none !important; }
+
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:#FBF6EC; }
+  ::-webkit-scrollbar-thumb{ background:#525EA7; border:2px solid #FBF6EC; }
+
+  input[type="color"]{ border:3px solid var(--ink); box-shadow:2px 2px 0 var(--ink); padding:2px; background:#fff; cursor:pointer; width:34px; height:34px; }
+  input[type="checkbox"]{ accent-color:#525EA7; width:16px; height:16px; }
+  input[type="range"]{ accent-color:#525EA7; }
+
+  .empty-state-box{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+</style>
+</head>
+<body class="text-ink">
+
+<!-- ============ HEADER ============ -->
+<header class="pixel-border bg-white mx-3 mt-3 md:mx-6 md:mt-6 p-5 md:p-7 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+  <div class="flex items-center gap-4">
+    <div class="w-14 h-14 shrink-0 pixel-border bg-primary flex items-center justify-center">
+      <i data-lucide="bar-chart-3" class="w-7 h-7 text-white"></i>
+    </div>
+    <div>
+      <h1 class="font-display text-4xl md:text-5xl leading-none">CHART<br>GENERATOR</h1>
+      <p class="font-body text-sm text-ink/70 mt-1">Create professional charts from your data</p>
+    </div>
+  </div>
+  <div class="flex gap-3">
+    <button id="headerNewChartBtn" type="button" class="pixel-btn bg-white px-4 py-3 font-body font-bold text-xs uppercase tracking-wide flex items-center gap-2" title="Start a new chart (restores defaults)">
+      <i data-lucide="rotate-ccw" class="w-4 h-4"></i> New Chart
+    </button>
+    <button id="headerExportBtn" type="button" class="pixel-btn bg-accent px-4 py-3 font-body font-bold text-xs uppercase tracking-wide flex items-center gap-2" title="Quick export as PNG">
+      <i data-lucide="download" class="w-4 h-4"></i> Export
+    </button>
+  </div>
+</header>
+
+<!-- ============ MAIN LAYOUT ============ -->
+<main class="grid grid-cols-1 lg:grid-cols-[35%_65%] gap-6 p-3 md:p-6">
+
+  <!-- ============ LEFT: SETTINGS ============ -->
+  <section class="flex flex-col gap-6" aria-label="Chart settings">
+
+    <!-- 01 CHART TYPE -->
+    <div class="pixel-border bg-white p-5">
+      <p class="section-label mb-3">01 / Chart Type</p>
+      <div id="chartTypeGroup" class="grid grid-cols-3 gap-2" role="group" aria-label="Chart type">
+        <button type="button" class="chart-type-btn pixel-btn flex flex-col items-center justify-center gap-1 py-3" data-type="line" title="Line Chart" aria-pressed="false">
+          <i data-lucide="line-chart" class="w-5 h-5"></i>
+          <span class="font-body text-[10px] font-bold uppercase">Line</span>
+        </button>
+        <button type="button" class="chart-type-btn pixel-btn flex flex-col items-center justify-center gap-1 py-3" data-type="bar" title="Bar Chart" aria-pressed="false">
+          <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+          <span class="font-body text-[10px] font-bold uppercase">Bar</span>
+        </button>
+        <button type="button" class="chart-type-btn pixel-btn flex flex-col items-center justify-center gap-1 py-3" data-type="area" title="Area Chart" aria-pressed="false">
+          <i data-lucide="trending-up" class="w-5 h-5"></i>
+          <span class="font-body text-[10px] font-bold uppercase">Area</span>
+        </button>
+        <button type="button" class="chart-type-btn pixel-btn flex flex-col items-center justify-center gap-1 py-3" data-type="doughnut" title="Doughnut Chart" aria-pressed="false">
+          <i data-lucide="circle" class="w-5 h-5"></i>
+          <span class="font-body text-[10px] font-bold uppercase">Donut</span>
+        </button>
+        <button type="button" class="chart-type-btn pixel-btn flex flex-col items-center justify-center gap-1 py-3" data-type="pie" title="Pie Chart" aria-pressed="false">
+          <i data-lucide="pie-chart" class="w-5 h-5"></i>
+          <span class="font-body text-[10px] font-bold uppercase">Pie</span>
+        </button>
+      </div>
+      <div class="mt-4">
+        <label for="templateSelect" class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5">Template</label>
+        <select id="templateSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
+          <option value="">— Choose a template —</option>
+          <option value="performance">Performance (SLA / Uptime)</option>
+          <option value="sales">Sales / Revenue</option>
+          <option value="financial">Financial</option>
+          <option value="simple">Simple / Minimal</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 02 DATA -->
+    <div class="pixel-border bg-white p-5">
+      <p class="section-label mb-3">02 / Data</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm font-body">
+          <thead>
+            <tr class="text-left text-[10px] uppercase tracking-wide text-ink/60 border-b-[3px] border-ink">
+              <th class="py-2 pr-2 w-8">No</th>
+              <th class="py-2 pr-2">Label</th>
+              <th class="py-2 pr-2">Value</th>
+              <th class="py-2 w-8"></th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody"></tbody>
+        </table>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mt-4">
+        <button id="addRowBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Data</button>
+        <button id="clearAllBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase text-red-600 flex items-center justify-center gap-1.5"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear All</button>
+        <button id="loadExampleBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5"><i data-lucide="database" class="w-3.5 h-3.5"></i> Example</button>
+        <button id="loadDefaultBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Default</button>
+      </div>
+    </div>
+
+    <!-- 03 TITLES & LABELS -->
+    <div class="pixel-border bg-white p-5">
+      <p class="section-label mb-3">03 / Titles &amp; Labels</p>
+      <div class="space-y-3.5">
+        <div>
+          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="titleInput">Chart Title</label>
+          <input type="text" id="titleInput" class="pixel-input w-full px-3 py-2.5 font-body text-sm" placeholder="e.g. Monthly Performance">
+        </div>
+        <div>
+          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="subtitleInput">Subtitle</label>
+          <input type="text" id="subtitleInput" class="pixel-input w-full px-3 py-2.5 font-body text-sm" placeholder="Optional subtitle">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="xAxisLabelInput">X Axis</label>
+            <input type="text" id="xAxisLabelInput" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
+          </div>
+          <div>
+            <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="yAxisLabelInput">Y Axis</label>
+            <input type="text" id="yAxisLabelInput" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
+          </div>
+        </div>
+        <div>
+          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="dataFormatSelect">Data Format</label>
+          <select id="dataFormatSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
+            <option value="number">Number</option>
+            <option value="percentage">Percentage</option>
+            <option value="currency">Currency (Rp)</option>
+            <option value="decimal">Decimal</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 04 APPEARANCE -->
+    <div class="pixel-border bg-white p-5">
+      <p class="section-label mb-3">04 / Appearance</p>
+
+      <button id="corporatePresetBtn" type="button" class="pixel-btn w-full bg-soft/50 px-3 py-3 font-body text-xs font-bold uppercase flex items-center justify-center gap-2 mb-4">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Corporate Performance Preset
+      </button>
+
+      <div class="mb-3.5">
+        <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="themeSelect">Theme</label>
+        <select id="themeSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
+          <option value="corporate">Corporate</option>
+          <option value="green">Green</option>
+          <option value="blue">Blue</option>
+          <option value="purple">Purple</option>
+          <option value="orange">Orange</option>
+          <option value="red">Red</option>
+          <option value="monochrome">Monochrome</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-x-3 mb-3.5 font-body text-xs">
+        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="showLegend"> Legend</label>
+        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="showDataLabels"> Data Labels</label>
+        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="showGrid"> Grid</label>
+        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="showPoints"> Points</label>
+        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="smoothLine"> Smooth Line</label>
+        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="fillArea"> Fill Area</label>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-3.5">
+        <div>
+          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5">Line Width <span id="lineWidthVal" class="text-primary"></span></label>
+          <input type="range" id="lineWidth" min="1" max="8" step="1" class="w-full">
+        </div>
+        <div>
+          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5">Point Size <span id="pointSizeVal" class="text-primary"></span></label>
+          <input type="range" id="pointSize" min="2" max="10" step="1" class="w-full">
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="pointStyle">Marker Style</label>
+        <select id="pointStyle" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
+          <option value="rect">Square</option>
+          <option value="circle">Circle</option>
+          <option value="triangle">Triangle</option>
+          <option value="star">Star</option>
+          <option value="crossRot">Cross</option>
+        </select>
+      </div>
+
+      <p class="font-body text-xs font-bold uppercase text-ink/60 mb-2">Custom Colors</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex items-center gap-2"><input type="color" id="colorLine"><span class="font-body text-xs">Line</span></div>
+        <div class="flex items-center gap-2"><input type="color" id="colorPoint"><span class="font-body text-xs">Point</span></div>
+        <div class="flex items-center gap-2"><input type="color" id="colorBackground"><span class="font-body text-xs">Chart Area</span></div>
+        <div class="flex items-center gap-2"><input type="color" id="colorGrid"><span class="font-body text-xs">Grid</span></div>
+      </div>
+    </div>
+
+    <!-- 05 EXPORT SETUP -->
+    <div class="pixel-border bg-white p-5">
+      <p class="section-label mb-3">05 / Export Setup</p>
+      <div class="mb-3.5">
+        <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="exportBgSelect">Background</label>
+        <select id="exportBgSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
+          <option value="white">White</option>
+          <option value="transparent">Transparent</option>
+          <option value="custom">Custom Color</option>
+        </select>
+      </div>
+      <div class="mb-3.5" id="exportBgColorField">
+        <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="exportBgColor">Custom Background</label>
+        <input type="color" id="exportBgColor">
+      </div>
+      <div class="mb-3.5">
+        <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="resolutionSelect">Image Size</label>
+        <select id="resolutionSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
+          <option value="1280x720">1280 × 720</option>
+          <option value="1920x1080">1920 × 1080</option>
+          <option value="2560x1440">2560 × 1440</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3" id="customResolutionFields">
+        <div>
+          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="customWidth">Width</label>
+          <input type="number" id="customWidth" class="pixel-input w-full px-3 py-2.5 font-body text-sm" min="100" max="6000">
+        </div>
+        <div>
+          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="customHeight">Height</label>
+          <input type="number" id="customHeight" class="pixel-input w-full px-3 py-2.5 font-body text-sm" min="100" max="6000">
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 pb-2">
+      <button id="generateBtn" type="button" class="pixel-btn bg-primary text-white px-4 py-4 font-body font-bold text-sm uppercase flex items-center justify-center gap-2"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Generate</button>
+      <button id="resetBtn" type="button" class="pixel-btn bg-white px-4 py-4 font-body font-bold text-sm uppercase flex items-center justify-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset</button>
+    </div>
+
+  </section>
+
+  <!-- ============ RIGHT: PREVIEW ============ -->
+  <section class="flex flex-col gap-6" aria-label="Chart preview">
+    <div class="pixel-border bg-white flex flex-col">
+
+      <div class="flex items-center justify-between px-5 py-4 border-b-[3px] border-ink flex-wrap gap-3">
+        <p class="section-label">Chart Preview</p>
+        <button id="fullscreenBtn" type="button" class="pixel-btn bg-white px-3 py-2 font-body text-xs font-bold uppercase flex items-center gap-1.5"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> Fullscreen</button>
+      </div>
+
+      <div class="px-5 pt-4 flex flex-wrap gap-3" id="statsBar"></div>
+
+      <div id="errorMessage" role="alert" class="mx-5 mt-3 px-4 py-3 border-2 border-red-500 bg-red-50 text-red-700 font-body text-xs font-semibold" style="display:none;"></div>
+
+      <div class="p-5">
+        <div class="chart-canvas-wrap relative w-full pixel-border bg-white" id="canvasWrap" style="min-height:440px;">
+          <canvas id="previewCanvas" class="absolute inset-0 w-full h-full"></canvas>
+          <div class="empty-state-box hidden text-center font-body text-sm text-ink/50 p-6" id="emptyState">No chart to display.<br>Add valid data to see a preview.</div>
+        </div>
+      </div>
+
+      <div class="px-5 pb-3">
+        <p class="font-body text-[11px] text-ink/50 uppercase tracking-wide">Data source: Manual input</p>
+      </div>
+
+      <div class="border-t-2 border-ink/10 px-5 py-4 flex flex-wrap gap-2">
+        <span class="section-label self-center mr-1">Export</span>
+        <button id="downloadPngBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center gap-1.5 flex-1 justify-center min-w-[110px]"><i data-lucide="image" class="w-3.5 h-3.5"></i> PNG</button>
+        <button id="downloadJpgBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center gap-1.5 flex-1 justify-center min-w-[110px]"><i data-lucide="file-output" class="w-3.5 h-3.5"></i> JPG</button>
+        <button id="downloadSvgBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center gap-1.5 flex-1 justify-center min-w-[110px]"><i data-lucide="file-code" class="w-3.5 h-3.5"></i> SVG</button>
+        <button id="copyImageBtn" type="button" class="pixel-btn bg-accent px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center gap-1.5 flex-1 justify-center min-w-[110px]"><i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="text-center font-body text-[11px] text-ink/50 uppercase tracking-wide py-6 px-4">Runs entirely in your browser — data is stored only in this device's local storage.</footer>
+
+<!-- ============ FULLSCREEN MODAL ============ -->
+<div id="fullscreenModal" class="fixed inset-0 bg-ink/70 items-center justify-center p-6 z-[100] hidden flex">
+  <div class="pixel-border bg-white relative w-full max-w-5xl p-5" style="height:min(720px,90vh);">
+    <button id="fsCloseBtn" type="button" class="pixel-btn bg-white w-9 h-9 flex items-center justify-center absolute top-3 right-3 z-10" aria-label="Close fullscreen preview"><i data-lucide="x" class="w-4 h-4"></i></button>
+    <canvas id="fsCanvas" class="w-full h-full"></canvas>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-2 opacity-0 pointer-events-none transition-all duration-200 pixel-border bg-ink text-paper px-5 py-3 font-body text-xs font-bold uppercase flex items-center gap-2 z-[200]">
+  <i data-lucide="check-circle" class="w-4 h-4"></i>
+  <span id="toastText"></span>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ============================================================
+     APP STATE
+  ============================================================ */
+
+  const LS_KEY = 'chartGeneratorState_v1';
+
+  const THEMES = {
+    corporate:  { line:'#525EA7', point:'#525EA7', grid:'#D9E6EC' },
+    green:      { line:'#3FA34D', point:'#3FA34D', grid:'#D9E6EC' },
+    blue:       { line:'#5FACD3', point:'#5FACD3', grid:'#D9E6EC' },
+    purple:     { line:'#7C6FC4', point:'#7C6FC4', grid:'#D9E6EC' },
+    orange:     { line:'#F2A65A', point:'#F2A65A', grid:'#D9E6EC' },
+    red:        { line:'#E0736B', point:'#E0736B', grid:'#D9E6EC' },
+    monochrome: { line:'#4B5563', point:'#4B5563', grid:'#D9E6EC' }
+  };
+
+  const TEMPLATES = {
+    performance: { chartType:'line', dataFormat:'percentage', showLegend:false, showGrid:true,  showDataLabels:true,  yAxisLabel:'Performance (%)', theme:'corporate' },
+    sales:       { chartType:'bar',  dataFormat:'currency',   showLegend:false, showGrid:true,  showDataLabels:true,  yAxisLabel:'Revenue',         theme:'blue' },
+    financial:   { chartType:'area', dataFormat:'currency',   showLegend:false, showGrid:true,  showDataLabels:false, yAxisLabel:'Amount',          theme:'green' },
+    simple:      { chartType:'line', dataFormat:'number',     showLegend:false, showGrid:false, showDataLabels:false, yAxisLabel:'',                theme:'monochrome' }
+  };
+
+  const DEFAULT_DATA = [
+    
+  ];
+
+  const EXAMPLE_DATA = [
+    { label:'Q1', value:98.50 },
+    { label:'Q2', value:99.10 },
+    { label:'Q3', value:99.80 },
+    { label:'Q4', value:99.95 }
+  ];
+
+  function buildDefaultState(){
+    return {
+      chartType: 'line',
+      title: '',
+      subtitle: '',
+      xAxisLabel: '',
+      yAxisLabel: '',
+      showLegend: false,
+      showDataLabels: true,
+      showGrid: true,
+      showPoints: true,
+      smoothLine: false,
+      fillArea: false,
+      lineWidth: 2,
+      pointSize: 5,
+      pointStyle: 'rect',
+      dataFormat: 'percentage',
+      theme: 'corporate',
+      colors: { line:'#525EA7', point:'#525EA7', background:'#FFFFFF', grid:'#D9E6EC' },
+      exportBg: 'white',
+      exportBgColor: '#FFFFFF',
+      resolution: '1920x1080',
+      customWidth: 1920,
+      customHeight: 1080,
+      data: clone(DEFAULT_DATA)
+    };
+  }
+
+  function clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+  let state = buildDefaultState();
+  let chartInstance = null;
+  let fsChartInstance = null;
+
+  /* ============================================================
+     INITIALIZATION
+  ============================================================ */
+
+  function byId(id){ return document.getElementById(id); }
+
+  function refreshIcons(){
+    if(window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+  }
+
+  function init(){
+    const saved = loadFromLocalStorage();
+    state = saved || buildDefaultState();
+    bindEvents();
+    syncUIFromState();
+    renderTable();
+    renderChart();
+    refreshIcons();
+  }
+
+  /* ============================================================
+     HELPERS
+  ============================================================ */
+
+  function escapeHtml(str){
+    return String(str ?? '').replace(/[&<>"']/g, c => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+  }
+
+  function hexToRgba(hex, alpha){
+    const h = hex.replace('#','');
+    const bigint = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
+    const r = (bigint >> 16) & 255, g = (bigint >> 8) & 255, b = bigint & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function hexToHsl(hex){
+    let h = hex.replace('#','');
+    if(h.length === 3) h = h.split('').map(c=>c+c).join('');
+    const r = parseInt(h.substr(0,2),16)/255, g = parseInt(h.substr(2,2),16)/255, b = parseInt(h.substr(4,2),16)/255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let hh, s, l = (max+min)/2;
+    if(max === min){ hh = 0; s = 0; }
+    else{
+      const d = max - min;
+      s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+      switch(max){
+        case r: hh = (g-b)/d + (g<b?6:0); break;
+        case g: hh = (b-r)/d + 2; break;
+        default: hh = (r-g)/d + 4;
+      }
+      hh *= 60;
+    }
+    return { h:hh, s:s*100, l:l*100 };
+  }
+
+  function hslToHex(h, s, l){
+    s/=100; l/=100;
+    const k = n => (n + h/30) % 12;
+    const a = s * Math.min(l, 1-l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1)));
+    const toHex = x => Math.round(255*x).toString(16).padStart(2,'0');
+    return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+  }
+
+  function generatePalette(n, baseHex){
+    const { h, s, l } = hexToHsl(baseHex);
+    const colors = [];
+    for(let i=0; i<Math.max(n,1); i++){
+      const hue = (h + i * (360 / Math.max(n,1))) % 360;
+      colors.push(hslToHex(hue, Math.max(s,45), Math.min(Math.max(l,40),60)));
+    }
+    return colors;
+  }
+
+  function formatValue(value, format){
+    const num = Number(value);
+    if(isNaN(num)) return '';
+    switch(format){
+      case 'percentage': return num.toFixed(2) + '%';
+      case 'currency': return 'Rp ' + Math.round(num).toLocaleString('id-ID');
+      case 'decimal': return num.toFixed(2);
+      case 'number':
+      default: return num.toLocaleString('id-ID');
+    }
+  }
+
+  function showToast(msg){
+    const t = byId('toast');
+    const txt = byId('toastText');
+    txt.textContent = msg;
+    t.classList.remove('opacity-0','pointer-events-none','translate-y-2');
+    t.classList.add('opacity-100','translate-y-0');
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(() => {
+      t.classList.add('opacity-0','pointer-events-none','translate-y-2');
+      t.classList.remove('opacity-100','translate-y-0');
+    }, 2200);
+  }
+
+  function showError(msg){
+    const el = byId('errorMessage');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function hideError(){
+    byId('errorMessage').style.display = 'none';
+  }
+
+  function downloadUrl(url, filename){
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  function getResolution(){
+    if(state.resolution === 'custom'){
+      return { w: Math.max(100, Number(state.customWidth) || 1920), h: Math.max(100, Number(state.customHeight) || 1080) };
+    }
+    const [w,h] = state.resolution.split('x').map(Number);
+    return { w, h };
+  }
+
+  function getExportBackgroundColor(){
+    if(state.exportBg === 'transparent') return null;
+    if(state.exportBg === 'custom') return state.exportBgColor;
+    return '#FFFFFF';
+  }
+
+  /* ============================================================
+     DATA MANAGEMENT / VALIDATION
+  ============================================================ */
+
+  function validateData(data){
+    if(!data || data.length === 0){
+      return { valid:false, message: 'Please add at least one data row.' };
+    }
+    for(let i=0; i<data.length; i++){
+      const row = data[i];
+      if(!row.label || !String(row.label).trim()){
+        return { valid:false, message: `Row ${i+1}: Label must not be empty.` };
+      }
+      if(row.value === '' || row.value === null || row.value === undefined || isNaN(Number(row.value))){
+        return { valid:false, message: `Row ${i+1}: Value must be a valid number.` };
+      }
+    }
+    return { valid:true };
+  }
+
+  /* ============================================================
+     CHART CONFIGURATION
+  ============================================================ */
+
+  Chart.register(ChartDataLabels);
+
+  const backgroundColorPlugin = {
+    id: 'customCanvasBackgroundColor',
+    beforeDraw(chart, args, options){
+      const color = options && options.color;
+      if(!color) return; // transparent — skip fill
+      const { ctx } = chart;
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-over';
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, chart.width, chart.height);
+      ctx.restore();
+    }
+  };
+  Chart.register(backgroundColorPlugin);
+
+  /**
+   * calculateYAxisRange
+   * Computes a proportional min/max for the Y axis based on the actual data,
+   * instead of relying on Chart.js's default auto-scale or hardcoded bounds.
+   * - Finds min/max of the dataset
+   * - Adds proportional padding above & below (based on the data range)
+   * - Falls back to a safe padding when the range is 0 (flat data) or tiny
+   * - Keeps a non-negative axis floor when all data is non-negative
+   * - Leaves negative data free to extend below zero
+   */
+  function calculateYAxisRange(values){
+    const nums = (values || []).map(Number).filter(v => !isNaN(v));
+    if(nums.length === 0) return { min: undefined, max: undefined };
+
+    const min = Math.min(...nums);
+    const max = Math.max(...nums);
+    const range = max - min;
+
+    if(range === 0){
+      const magnitude = Math.abs(min);
+      const pad = magnitude > 0 ? magnitude * 0.05 : 1;
+      let axisMin = min - pad;
+      let axisMax = max + pad;
+      if(min >= 0 && axisMin < 0) axisMin = 0;
+      return { min: axisMin, max: axisMax };
+    }
+
+    const paddingRatio = 0.18;
+    let padding = range * paddingRatio;
+    const minAbsolutePadding = range * 0.12;
+    padding = Math.max(padding, minAbsolutePadding);
+
+    let axisMin = min - padding;
+    let axisMax = max + padding;
+
+    if(min >= 0 && axisMin < 0){
+      axisMin = 0;
+    }
+
+    return { min: axisMin, max: axisMax };
+  }
+
+  function buildChartConfig(){
+    const labels = state.data.map(d => d.label);
+    const values = state.data.map(d => Number(d.value));
+    const isPie = state.chartType === 'doughnut' || state.chartType === 'pie';
+    const actualType = state.chartType === 'area' ? 'line' : state.chartType;
+
+    let backgroundColor;
+    if(isPie){
+      backgroundColor = generatePalette(values.length, state.colors.line);
+    } else if(state.chartType === 'bar'){
+      backgroundColor = state.colors.line;
+    } else {
+      const shouldFill = state.chartType === 'area' || state.fillArea;
+      backgroundColor = shouldFill ? hexToRgba(state.colors.line, 0.16) : hexToRgba(state.colors.line, 0);
+    }
+
+    const dataset = {
+      label: state.title || 'Dataset',
+      data: values,
+      borderColor: state.colors.line,
+      backgroundColor: backgroundColor,
+      borderWidth: isPie ? 1 : Number(state.lineWidth),
+      pointBackgroundColor: state.colors.point,
+      pointBorderColor: state.colors.point,
+      pointStyle: state.showPoints ? state.pointStyle : false,
+      pointRadius: (actualType === 'line') ? (state.showPoints ? Number(state.pointSize) : 0) : undefined,
+      pointHoverRadius: (actualType === 'line') ? (state.showPoints ? Number(state.pointSize)+2 : 0) : undefined,
+      tension: (actualType === 'line' && state.smoothLine) ? 0.4 : 0,
+      fill: actualType === 'line' ? (state.chartType === 'area' ? true : state.fillArea) : undefined,
+      borderRadius: state.chartType === 'bar' ? 4 : 0,
+      maxBarThickness: state.chartType === 'bar' ? 56 : undefined,
+      hoverOffset: isPie ? 6 : 0
+    };
+
+    return {
+      type: actualType,
+      data: { labels, datasets: [dataset] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 350 },
+        layout: { padding: { top: state.subtitle ? 48 : 38, right: 26, bottom: 12, left: 12 } },
+        plugins: {
+          title: {
+            display: !!state.title,
+            text: state.title,
+            font: { family: "'Bebas Neue', sans-serif", size: 20, weight: '400' },
+            color: '#1f2937',
+            padding: { bottom: state.subtitle ? 2 : 16 }
+          },
+          subtitle: {
+            display: !!state.subtitle,
+            text: state.subtitle,
+            font: { family: "'Montserrat', sans-serif", size: 12.5, weight: '500' },
+            color: '#4b5563',
+            padding: { bottom: 16 }
+          },
+          legend: {
+            display: state.showLegend,
+            position: 'bottom',
+            labels: { font: { family: "'Montserrat', sans-serif" }, color: '#334155', usePointStyle: true }
+          },
+          tooltip: {
+            callbacks: {
+              label(ctx){
+                const raw = isPie ? ctx.parsed : ctx.parsed.y;
+                const name = isPie ? ctx.label : (ctx.dataset.label || '');
+                return `${name}: ${formatValue(raw, state.dataFormat)}`;
+              }
+            }
+          },
+          datalabels: {
+            display: state.showDataLabels,
+            color: isPie ? '#FFFFFF' : '#1f2937',
+            font: { family: "'Montserrat', sans-serif", size: 10.5, weight: '700' },
+            anchor: isPie ? 'center' : 'end',
+            align: isPie ? 'center' : 'top',
+            offset: 10,
+            clamp: true,
+            clip: false,
+            formatter(value){
+              return formatValue(value, state.dataFormat);
+            }
+          },
+          customCanvasBackgroundColor: { color: state.colors.background || '#FFFFFF' }
+        },
+        scales: isPie ? {} : {
+          x: {
+            title: { display: !!state.xAxisLabel, text: state.xAxisLabel, font: { family: "'Montserrat', sans-serif", weight:'600' }, color: '#4b5563' },
+            grid: { display: state.showGrid, color: state.colors.grid },
+            ticks: { color: '#4b5563', font: { family: "'Montserrat', sans-serif" } }
+          },
+          y: (() => {
+            const yScale = {
+              title: { display: !!state.yAxisLabel, text: state.yAxisLabel, font: { family: "'Montserrat', sans-serif", weight:'600' }, color: '#4b5563' },
+              grid: { display: state.showGrid, color: state.colors.grid },
+              ticks: { color: '#4b5563', font: { family: "'Montserrat', sans-serif" }, callback: v => formatValue(v, state.dataFormat) }
+            };
+            if(actualType === 'line'){
+              const range = calculateYAxisRange(values);
+              yScale.min = range.min;
+              yScale.max = range.max;
+            } else if(actualType === 'bar'){
+              yScale.beginAtZero = true;
+            }
+            return yScale;
+          })()
+        }
+      }
+    };
+  }
+
+  /* ============================================================
+     CHART RENDERING
+  ============================================================ */
+
+  function renderChart(){
+    const validation = validateData(state.data);
+    const emptyState = byId('emptyState');
+
+    if(!validation.valid){
+      showError(validation.message);
+      if(chartInstance){ chartInstance.destroy(); chartInstance = null; }
+      emptyState.classList.remove('hidden');
+      byId('statsBar').innerHTML = '';
+      return false;
+    }
+    hideError();
+    emptyState.classList.add('hidden');
+
+    const cfg = buildChartConfig();
+    if(chartInstance) chartInstance.destroy();
+    const ctx = byId('previewCanvas').getContext('2d');
+    chartInstance = new Chart(ctx, cfg);
+
+    updateStatsBar();
+    saveToLocalStorage();
+    return true;
+  }
+
+  function updateStatsBar(){
+    const values = state.data.map(d => Number(d.value)).filter(v => !isNaN(v));
+    const el = byId('statsBar');
+    if(values.length === 0){ el.innerHTML = ''; return; }
+    const min = Math.min(...values), max = Math.max(...values);
+    const avg = values.reduce((a,b)=>a+b,0) / values.length;
+
+    const card = (icon, label, value) => `
+      <div class="pixel-border bg-white px-3.5 py-2.5 flex items-center gap-2.5">
+        <i data-lucide="${icon}" class="w-4 h-4 text-primary"></i>
+        <div>
+          <p class="text-[9px] uppercase font-bold text-ink/50 tracking-wide leading-none mb-1">${label}</p>
+          <p class="font-display text-lg leading-none">${value}</p>
+        </div>
+      </div>`;
+
+    el.innerHTML =
+      card('hash', 'Points', values.length) +
+      card('arrow-down-circle', 'Min', formatValue(min, state.dataFormat)) +
+      card('arrow-up-circle', 'Max', formatValue(max, state.dataFormat)) +
+      card('gauge', 'Average', formatValue(avg, state.dataFormat));
+
+    refreshIcons();
+  }
+
+  /* ============================================================
+     UI RENDERING: DATA TABLE
+  ============================================================ */
+
+  function renderTable(){
+    const tbody = byId('dataTableBody');
+    tbody.innerHTML = state.data.map((row, i) => `
+      <tr class="border-b border-ink/10">
+        <td class="py-1.5 pr-2 text-ink/50 text-xs font-display">${i+1}</td>
+        <td class="py-1.5 pr-2"><input type="text" class="row-label pixel-input w-full px-2.5 py-1.5 text-sm" data-index="${i}" data-field="label" value="${escapeHtml(row.label)}" placeholder="e.g. Januari"></td>
+        <td class="py-1.5 pr-2"><input type="number" step="any" class="row-value pixel-input w-full px-2.5 py-1.5 text-sm" data-index="${i}" data-field="value" value="${escapeHtml(row.value)}"></td>
+        <td class="py-1.5 text-center">
+          <button type="button" class="delete-row pixel-btn w-8 h-8 flex items-center justify-center text-red-600 bg-white" data-index="${i}" aria-label="Delete row ${i+1}" title="Delete row">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+    refreshIcons();
+  }
+
+  byId('dataTableBody').addEventListener('input', (e) => {
+    const t = e.target;
+    if(t.matches('.row-label, .row-value')){
+      const idx = Number(t.dataset.index);
+      const field = t.dataset.field;
+      if(!state.data[idx]) return;
+      state.data[idx][field] = t.value;
+      renderChart();
+    }
+  });
+
+  byId('dataTableBody').addEventListener('click', (e) => {
+    const btn = e.target.closest('.delete-row');
+    if(btn){
+      const idx = Number(btn.dataset.index);
+      state.data.splice(idx, 1);
+      renderTable();
+      renderChart();
+    }
+  });
+
+  /* ============================================================
+     UI RENDERING: STATE SYNC
+  ============================================================ */
+
+  function syncChartTypeButtons(){
+    document.querySelectorAll('.chart-type-btn').forEach(btn => {
+      const active = btn.dataset.type === state.chartType;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+
+  function syncUIFromState(){
+    syncChartTypeButtons();
+
+    byId('titleInput').value = state.title;
+    byId('subtitleInput').value = state.subtitle;
+    byId('xAxisLabelInput').value = state.xAxisLabel;
+    byId('yAxisLabelInput').value = state.yAxisLabel;
+    byId('dataFormatSelect').value = state.dataFormat;
+    byId('themeSelect').value = state.theme;
+
+    byId('showLegend').checked = state.showLegend;
+    byId('showDataLabels').checked = state.showDataLabels;
+    byId('showGrid').checked = state.showGrid;
+    byId('showPoints').checked = state.showPoints;
+    byId('smoothLine').checked = state.smoothLine;
+    byId('fillArea').checked = state.fillArea;
+
+    byId('lineWidth').value = state.lineWidth;
+    byId('lineWidthVal').textContent = state.lineWidth;
+    byId('pointSize').value = state.pointSize;
+    byId('pointSizeVal').textContent = state.pointSize;
+    byId('pointStyle').value = state.pointStyle;
+
+    byId('colorLine').value = state.colors.line;
+    byId('colorPoint').value = state.colors.point;
+    byId('colorBackground').value = state.colors.background;
+    byId('colorGrid').value = state.colors.grid;
+
+    byId('exportBgSelect').value = state.exportBg;
+    byId('exportBgColor').value = state.exportBgColor;
+    byId('resolutionSelect').value = state.resolution;
+    byId('customWidth').value = state.customWidth;
+    byId('customHeight').value = state.customHeight;
+
+    toggleConditionalFields();
+  }
+
+  function toggleConditionalFields(){
+    byId('exportBgColorField').classList.toggle('hidden', state.exportBg !== 'custom');
+    byId('customResolutionFields').classList.toggle('hidden', state.resolution !== 'custom');
+  }
+
+  /* ============================================================
+     ACTIONS (theme / template / preset / reset)
+  ============================================================ */
+
+  function applyTheme(name){
+    state.theme = name;
+    const t = THEMES[name];
+    if(t){
+      state.colors.line = t.line;
+      state.colors.point = t.point;
+      state.colors.grid = t.grid;
+    }
+  }
+
+  function applyTemplate(name){
+    const t = TEMPLATES[name];
+    if(!t) return;
+    state.chartType = t.chartType;
+    state.dataFormat = t.dataFormat;
+    state.showLegend = t.showLegend;
+    state.showGrid = t.showGrid;
+    state.showDataLabels = t.showDataLabels;
+    state.yAxisLabel = t.yAxisLabel;
+    applyTheme(t.theme);
+    syncUIFromState();
+    renderChart();
+  }
+
+  function applyCorporatePreset(){
+    const base = buildDefaultState();
+    state.chartType = base.chartType;
+    state.theme = base.theme;
+    state.colors = clone(base.colors);
+    state.pointStyle = base.pointStyle;
+    state.showPoints = base.showPoints;
+    state.showLegend = base.showLegend;
+    state.showDataLabels = base.showDataLabels;
+    state.showGrid = base.showGrid;
+    state.dataFormat = base.dataFormat;
+    state.smoothLine = base.smoothLine;
+    state.lineWidth = base.lineWidth;
+    state.exportBg = base.exportBg;
+    state.exportBgColor = base.exportBgColor;
+    syncUIFromState();
+    renderChart();
+    showToast('Corporate Performance preset applied');
+  }
+
+  function resetApp(){
+    state = buildDefaultState();
+    try{ localStorage.removeItem(LS_KEY); }catch(e){}
+    syncUIFromState();
+    renderTable();
+    renderChart();
+    showToast('Chart reset to default');
+  }
+
+  /* ============================================================
+     LOCALSTORAGE
+  ============================================================ */
+
+  function saveToLocalStorage(){
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+    catch(e){ /* storage unavailable — silently ignore */ }
+  }
+
+  function loadFromLocalStorage(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      if(!parsed || !Array.isArray(parsed.data) || parsed.data.length === 0) return null;
+      // Merge with defaults so any missing/incomplete fields from an older
+      // saved state (e.g. from a previous version of this app) don't break
+      // rendering — this only fills in gaps, it never overrides valid data.
+      const defaults = buildDefaultState();
+      const merged = Object.assign({}, defaults, parsed);
+      merged.colors = Object.assign({}, defaults.colors, parsed.colors || {});
+      return merged;
+    }catch(e){ return null; }
+  }
+
+  /* ============================================================
+     EXPORT
+  ============================================================ */
+
+  function exportImage(format){
+    if(!validateData(state.data).valid){
+      showError('Please fix the data errors before exporting.');
+      return;
+    }
+    const { w, h } = getResolution();
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = w;
+    offCanvas.height = h;
+
+    const cfg = buildChartConfig();
+    cfg.options.animation = false;
+    cfg.options.responsive = false;
+    cfg.options.maintainAspectRatio = false;
+    const bg = format === 'jpeg' ? (getExportBackgroundColor() || '#FFFFFF') : getExportBackgroundColor();
+    cfg.options.plugins.customCanvasBackgroundColor = { color: bg };
+
+    const tempChart = new Chart(offCanvas.getContext('2d'), cfg);
+    setTimeout(() => {
+      const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+      const url = offCanvas.toDataURL(mime, 0.95);
+      downloadUrl(url, `chart.${format === 'jpeg' ? 'jpg' : 'png'}`);
+      tempChart.destroy();
+      showToast(`${format.toUpperCase()} downloaded`);
+    }, 60);
+  }
+
+  function exportSVG(){
+    if(!validateData(state.data).valid){
+      showError('Please fix the data errors before exporting.');
+      return;
+    }
+    const { w, h } = getResolution();
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = w;
+    offCanvas.height = h;
+
+    const cfg = buildChartConfig();
+    cfg.options.animation = false;
+    cfg.options.responsive = false;
+    cfg.options.maintainAspectRatio = false;
+    cfg.options.plugins.customCanvasBackgroundColor = { color: getExportBackgroundColor() || '#FFFFFF' };
+
+    const tempChart = new Chart(offCanvas.getContext('2d'), cfg);
+    setTimeout(() => {
+      const pngUrl = offCanvas.toDataURL('image/png');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><image href="${pngUrl}" x="0" y="0" width="${w}" height="${h}"/></svg>`;
+      const blob = new Blob([svg], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      downloadUrl(url, 'chart.svg');
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      tempChart.destroy();
+      showToast('SVG downloaded');
+    }, 60);
+  }
+
+  function copyImage(){
+    if(!validateData(state.data).valid){
+      showError('Please fix the data errors before copying.');
+      return;
+    }
+    if(!navigator.clipboard || typeof ClipboardItem === 'undefined'){
+      showError('Copy Image is not supported in this browser.');
+      return;
+    }
+    const canvas = byId('previewCanvas');
+    canvas.toBlob(async (blob) => {
+      if(!blob){ showError('Could not generate image to copy.'); return; }
+      try{
+        await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+        showToast('Chart image copied to clipboard');
+      }catch(err){
+        showError('Failed to copy image: ' + err.message);
+      }
+    }, 'image/png');
+  }
+
+  function openFullscreen(){
+    if(!validateData(state.data).valid){
+      showError('Please fix the data errors first.');
+      return;
+    }
+    byId('fullscreenModal').classList.remove('hidden');
+    const cfg = buildChartConfig();
+    cfg.options.animation = false;
+    if(fsChartInstance) fsChartInstance.destroy();
+    fsChartInstance = new Chart(byId('fsCanvas').getContext('2d'), cfg);
+  }
+
+  function closeFullscreen(){
+    byId('fullscreenModal').classList.add('hidden');
+    if(fsChartInstance){ fsChartInstance.destroy(); fsChartInstance = null; }
+  }
+
+  /* ============================================================
+     EVENT HANDLERS
+  ============================================================ */
+
+  function bindEvents(){
+    document.querySelectorAll('.chart-type-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.chartType = btn.dataset.type;
+        syncChartTypeButtons();
+        renderChart();
+      });
+    });
+
+    byId('templateSelect').addEventListener('change', e => { if(e.target.value) applyTemplate(e.target.value); });
+    byId('titleInput').addEventListener('input', e => { state.title = e.target.value; renderChart(); });
+    byId('subtitleInput').addEventListener('input', e => { state.subtitle = e.target.value; renderChart(); });
+    byId('xAxisLabelInput').addEventListener('input', e => { state.xAxisLabel = e.target.value; renderChart(); });
+    byId('yAxisLabelInput').addEventListener('input', e => { state.yAxisLabel = e.target.value; renderChart(); });
+    byId('dataFormatSelect').addEventListener('change', e => { state.dataFormat = e.target.value; renderChart(); });
+
+    byId('addRowBtn').addEventListener('click', () => {
+      state.data.push({ label:'', value:0 });
+      renderTable();
+    });
+    byId('clearAllBtn').addEventListener('click', () => {
+      state.data = [];
+      renderTable();
+      renderChart();
+    });
+    byId('loadExampleBtn').addEventListener('click', () => {
+      state.data = clone(EXAMPLE_DATA);
+      state.chartType = 'bar';
+      state.title = 'Pencapaian SLA per Kuartal (2025)';
+      state.subtitle = '';
+      state.xAxisLabel = 'Kuartal';
+      state.yAxisLabel = 'SLA (%)';
+      state.dataFormat = 'percentage';
+      applyTheme('blue');
+      syncUIFromState();
+      renderTable();
+      renderChart();
+      showToast('Example data loaded');
+    });
+    byId('loadDefaultBtn').addEventListener('click', () => {
+      state = buildDefaultState();
+      syncUIFromState();
+      renderTable();
+      renderChart();
+      showToast('Default data loaded');
+    });
+
+    byId('corporatePresetBtn').addEventListener('click', applyCorporatePreset);
+    byId('themeSelect').addEventListener('change', e => { applyTheme(e.target.value); syncUIFromState(); renderChart(); });
+
+    byId('showLegend').addEventListener('change', e => { state.showLegend = e.target.checked; renderChart(); });
+    byId('showDataLabels').addEventListener('change', e => { state.showDataLabels = e.target.checked; renderChart(); });
+    byId('showGrid').addEventListener('change', e => { state.showGrid = e.target.checked; renderChart(); });
+    byId('showPoints').addEventListener('change', e => { state.showPoints = e.target.checked; renderChart(); });
+    byId('smoothLine').addEventListener('change', e => { state.smoothLine = e.target.checked; renderChart(); });
+    byId('fillArea').addEventListener('change', e => { state.fillArea = e.target.checked; renderChart(); });
+
+    byId('lineWidth').addEventListener('input', e => { state.lineWidth = e.target.value; byId('lineWidthVal').textContent = e.target.value; renderChart(); });
+    byId('pointSize').addEventListener('input', e => { state.pointSize = e.target.value; byId('pointSizeVal').textContent = e.target.value; renderChart(); });
+    byId('pointStyle').addEventListener('change', e => { state.pointStyle = e.target.value; renderChart(); });
+
+    byId('colorLine').addEventListener('input', e => { state.colors.line = e.target.value; renderChart(); });
+    byId('colorPoint').addEventListener('input', e => { state.colors.point = e.target.value; renderChart(); });
+    byId('colorBackground').addEventListener('input', e => { state.colors.background = e.target.value; renderChart(); });
+    byId('colorGrid').addEventListener('input', e => { state.colors.grid = e.target.value; renderChart(); });
+
+    byId('exportBgSelect').addEventListener('change', e => { state.exportBg = e.target.value; toggleConditionalFields(); renderChart(); });
+    byId('exportBgColor').addEventListener('input', e => { state.exportBgColor = e.target.value; renderChart(); });
+    byId('resolutionSelect').addEventListener('change', e => { state.resolution = e.target.value; toggleConditionalFields(); });
+    byId('customWidth').addEventListener('input', e => { state.customWidth = e.target.value; });
+    byId('customHeight').addEventListener('input', e => { state.customHeight = e.target.value; });
+
+    byId('generateBtn').addEventListener('click', () => {
+      const ok = renderChart();
+      if(ok) showToast('Chart generated');
+    });
+    byId('resetBtn').addEventListener('click', resetApp);
+    byId('headerNewChartBtn').addEventListener('click', resetApp);
+    byId('headerExportBtn').addEventListener('click', () => exportImage('png'));
+
+    byId('fullscreenBtn').addEventListener('click', openFullscreen);
+    byId('fsCloseBtn').addEventListener('click', closeFullscreen);
+    byId('fullscreenModal').addEventListener('click', e => { if(e.target.id === 'fullscreenModal') closeFullscreen(); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape') closeFullscreen(); });
+
+    byId('downloadPngBtn').addEventListener('click', () => exportImage('png'));
+    byId('downloadJpgBtn').addEventListener('click', () => exportImage('jpeg'));
+    byId('downloadSvgBtn').addEventListener('click', exportSVG);
+    byId('copyImageBtn').addEventListener('click', copyImage);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+
+</body>
+</html>

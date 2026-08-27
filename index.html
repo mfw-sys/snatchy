@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNATCHY — Simple tools for data, networking & project management.</title>
+<meta name="description" content="A personal toolbox of browser-based utilities: chart generator, subnet calculator, and Gantt chart planner.">
+
+<!-- Tailwind CSS via CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Lucide Icons via CDN -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --yellow: #FFC349;
+    --purple: #525EA7;
+    --blue: #5FACD3;
+    --light-blue: #97DDE9;
+    --ink: #1E2233;
+    --bg: #F8FAFC;
+  }
+
+  * { -webkit-tap-highlight-color: transparent; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: 'Montserrat', sans-serif;
+    background-image:
+      linear-gradient(var(--ink) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: -1px -1px;
+    background-attachment: fixed;
+    opacity-mask: none;
+  }
+  /* Very subtle grid: overlay a near-white wash so lines barely read */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-color: rgba(248, 250, 252, 0.96);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .font-display {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.02em;
+  }
+
+  /* Hard pixel-shadow utility */
+  .pixel-border {
+    border: 3px solid var(--ink);
+    box-shadow: 6px 6px 0 var(--ink);
+    transition: transform 0.12s steps(2), box-shadow 0.12s steps(2);
+  }
+  .pixel-border:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0 var(--ink);
+  }
+  .pixel-border:active {
+    transform: translate(3px, 3px);
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+
+  .pixel-flat {
+    border: 3px solid var(--ink);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+
+  .btn-press {
+    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
+  }
+  .btn-press:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 var(--ink) !important;
+  }
+
+  /* Focus visibility */
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 3px solid var(--purple);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--yellow);
+    color: var(--ink);
+  }
+
+  /* Terminal blink caret */
+  .caret::after {
+    content: "█";
+    animation: blink 1s steps(1) infinite;
+    color: var(--yellow);
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  /* Progress bar fill (CSS only) */
+  .progress-fill {
+    animation: fillbar 1.8s steps(20) forwards;
+  }
+  @keyframes fillbar {
+    from { width: 0%; }
+    to { width: 100%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill { animation: none; width: 100%; }
+    .caret::after { animation: none; }
+    * { scroll-behavior: auto !important; }
+  }
+
+  .tag-chip {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+  }
+
+  input::placeholder { color: #6B7280; opacity: 1; }
+
+  .card-hidden { display: none !important; }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- ======================= HEADER ======================= -->
+<header class="sticky top-0 z-40 bg-[#F8FAFC]/95 backdrop-blur border-b-[3px] border-[var(--ink)]">
+  <div class="max-w-[1240px] mx-auto px-5 sm:px-8 h-16 flex items-center justify-between gap-4">
+    <a href="#top" class="flex items-center gap-2 shrink-0" aria-label="Snatchy home">
+      <span class="w-9 h-9 flex items-center justify-center bg-[var(--purple)] border-[3px] border-[var(--ink)] shadow-[3px_3px_0_var(--ink)]" aria-hidden="true">
+        <i data-lucide="square" class="w-4 h-4 text-white"></i>
+      </span>
+      <span class="font-display text-2xl sm:text-3xl text-[var(--purple)] leading-none">SNATCHY</span>
+    </a>
+
+    <nav aria-label="Primary" class="hidden md:flex items-center gap-8 font-semibold text-sm tracking-wide">
+      <a href="#tools" class="hover:text-[var(--purple)] transition-colors">TOOLS</a>
+      <a href="#about" class="hover:text-[var(--purple)] transition-colors">ABOUT</a>
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <button id="open-search-btn" type="button"
+        class="flex items-center gap-2 pixel-flat btn-press bg-white px-3 h-10 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--light-blue)]/40"
+        aria-label="Open tool search" title="Search tools (Ctrl K)">
+        <i data-lucide="search" class="w-4 h-4" aria-hidden="true"></i>
+        <span class="hidden sm:inline">Search</span>
+        <span class="hidden sm:flex items-center gap-0.5 ml-1 text-[10px] font-bold border border-[var(--ink)] px-1.5 py-0.5 bg-[var(--yellow)]">
+          <i data-lucide="command" class="w-2.5 h-2.5" aria-hidden="true"></i>K
+        </span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ======================= HERO ======================= -->
+  <section class="max-w-[1240px] mx-auto px-5 sm:px-8 pt-14 pb-16 sm:pt-20 sm:pb-20">
+    <div class="grid md:grid-cols-2 gap-12 items-center">
+
+      <div>
+        <div class="inline-flex items-center gap-2 bg-[var(--yellow)] border-[3px] border-[var(--ink)] px-3 py-1.5 mb-6 shadow-[4px_4px_0_var(--ink)]">
+          <span class="w-2 h-2 rounded-full bg-[var(--ink)] inline-block" aria-hidden="true"></span>
+          <span class="text-xs font-extrabold tracking-wider" id="hero-tool-count-label">03 TOOLS AVAILABLE</span>
+        </div>
+
+        <h1 class="font-display text-6xl sm:text-7xl leading-[0.95] text-[var(--ink)]">
+          YOUR DIGITAL<br><span class="text-[var(--purple)]">SNATCHY</span>
+        </h1>
+
+        <p class="mt-6 text-base sm:text-lg text-gray-600 max-w-md">
+          Simple browser-based tools for data, networking, and project management.
+        </p>
+
+        <div class="mt-8 flex flex-wrap items-center gap-4">
+          <a href="#tools"
+            class="pixel-border btn-press bg-[var(--purple)] text-white font-bold text-sm tracking-wide px-6 py-3.5 inline-flex items-center gap-2 min-h-[44px]">
+            EXPLORE TOOLS
+            <i data-lucide="arrow-right" class="w-4 h-4" aria-hidden="true"></i>
+          </a>
+          <button id="random-tool-btn" type="button"
+            class="pixel-border btn-press bg-white font-bold text-sm tracking-wide px-6 py-3.5 inline-flex items-center gap-2 min-h-[44px]">
+            RANDOM TOOL
+            <i data-lucide="zap" class="w-4 h-4" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- HERO VISUAL: CSS-only retro terminal -->
+      <div class="justify-self-center w-full max-w-sm" aria-hidden="true">
+        <div class="pixel-flat bg-[var(--ink)] text-[var(--light-blue)] font-mono text-sm">
+          <div class="flex items-center gap-1.5 px-3 py-2 border-b-[3px] border-white/20 bg-white/5">
+            <span class="w-2.5 h-2.5 rounded-full bg-[var(--yellow)]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[var(--blue)]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[var(--light-blue)]"></span>
+            <span class="ml-2 text-[11px] tracking-wider text-white/60">SNATCHY.EXE</span>
+          </div>
+          <div class="p-4 space-y-2 text-[13px] leading-relaxed">
+            <p>&gt; SYSTEM READY</p>
+            <p>&gt; <span id="terminal-tool-count">3</span> TOOLS LOADED</p>
+            <p class="caret">&gt; SELECT TOOL</p>
+            <div class="mt-3 h-3 w-full bg-white/10 border border-white/20 overflow-hidden">
+              <div class="progress-fill h-full bg-[var(--yellow)]"></div>
+            </div>
+            <p class="text-[11px] text-white/50 pt-1">100%</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ======================= TOOLS SECTION ======================= -->
+  <section id="tools" class="max-w-[1240px] mx-auto px-5 sm:px-8 py-16 sm:py-20">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-10">
+      <div>
+        <p class="tag-chip text-[var(--purple)] mb-1">/ 02</p>
+        <h2 class="font-display text-4xl sm:text-5xl leading-none">AVAILABLE TOOLS</h2>
+        <p class="text-gray-600 mt-2">Small tools. Practical results.</p>
+      </div>
+
+      <!-- SEARCH -->
+      <div class="w-full sm:w-80">
+        <label for="tool-search" class="block tag-chip text-gray-500 mb-2">SEARCH TOOLS</label>
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden="true"></i>
+          <input id="tool-search" type="text" placeholder="Search tools..."
+            class="pixel-flat w-full bg-white pl-10 pr-16 h-11 text-sm font-medium focus:outline-none"
+            aria-label="Search tools by name, description, category or tag">
+          <span class="hidden sm:flex items-center gap-0.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold border border-[var(--ink)] px-1.5 py-0.5 bg-[var(--yellow)]" aria-hidden="true">
+            <i data-lucide="command" class="w-2.5 h-2.5"></i>K
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div id="tools-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6" role="list">
+      <!-- Tool cards injected by JS -->
+    </div>
+
+    <!-- No results state -->
+    <div id="no-results" class="hidden text-center py-16 pixel-flat bg-white mt-6">
+      <i data-lucide="search-x" class="w-8 h-8 mx-auto mb-3 text-gray-400" aria-hidden="true"></i>
+      <p class="font-display text-2xl tracking-wide">NO TOOLS FOUND</p>
+      <p class="text-gray-500 text-sm mt-1">Try another keyword.</p>
+    </div>
+  </section>
+
+  <!-- ======================= QUICK ACCESS ======================= -->
+  <section class="max-w-[1240px] mx-auto px-5 sm:px-8 pb-16 sm:pb-20">
+    <p class="tag-chip text-[var(--purple)] mb-1">/ 03</p>
+    <h2 class="font-display text-3xl sm:text-4xl leading-none mb-6">QUICK ACCESS</h2>
+
+    <div id="quick-access-list" class="pixel-flat bg-white divide-y-[3px] divide-[var(--ink)]">
+      <!-- Quick access rows injected by JS -->
+    </div>
+  </section>
+
+  <!-- ======================= ABOUT / FEATURES ======================= -->
+  <section id="about" class="max-w-[1240px] mx-auto px-5 sm:px-8 py-16 border-t-[3px] border-[var(--ink)]">
+    <div class="mb-10">
+      <p class="tag-chip text-[var(--purple)] mb-1">/ 04</p>
+      <h2 class="font-display text-4xl sm:text-5xl leading-none">WHY THIS SNATCHY?</h2>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-6">
+      <div class="pixel-flat bg-white p-6">
+        <p class="font-display text-3xl text-[var(--purple)] mb-3">01</p>
+        <div class="w-10 h-10 flex items-center justify-center bg-[var(--light-blue)]/50 border-2 border-[var(--ink)] mb-3">
+          <i data-lucide="cloud-off" class="w-5 h-5" aria-hidden="true"></i>
+        </div>
+        <h3 class="font-display text-xl tracking-wide mb-1">NO INSTALLATION</h3>
+        <p class="text-sm text-gray-600">Everything runs directly in your browser.</p>
+      </div>
+
+      <div class="pixel-flat bg-white p-6">
+        <p class="font-display text-3xl text-[var(--purple)] mb-3">02</p>
+        <div class="w-10 h-10 flex items-center justify-center bg-[var(--light-blue)]/50 border-2 border-[var(--ink)] mb-3">
+          <i data-lucide="layers" class="w-5 h-5" aria-hidden="true"></i>
+        </div>
+        <h3 class="font-display text-xl tracking-wide mb-1">SIMPLE TOOLS</h3>
+        <p class="text-sm text-gray-600">Focused utilities without unnecessary complexity.</p>
+      </div>
+
+      <div class="pixel-flat bg-white p-6">
+        <p class="font-display text-3xl text-[var(--purple)] mb-3">03</p>
+        <div class="w-10 h-10 flex items-center justify-center bg-[var(--light-blue)]/50 border-2 border-[var(--ink)] mb-3">
+          <i data-lucide="zap" class="w-5 h-5" aria-hidden="true"></i>
+        </div>
+        <h3 class="font-display text-xl tracking-wide mb-1">FAST WORKFLOW</h3>
+        <p class="text-sm text-gray-600">Open a tool, enter your data, and get results.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ======================= FOOTER ======================= -->
+<footer class="border-t-[3px] border-[var(--ink)] bg-white">
+  <div class="max-w-[1240px] mx-auto px-5 sm:px-8 py-10 flex flex-col gap-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <p class="font-display text-2xl text-[var(--purple)]">SNATCHY</p>
+        <p class="text-sm text-gray-600 mt-1">Simple tools for everyday work.</p>
+      </div>
+      <div class="flex items-center gap-6 text-sm font-semibold">
+        <span id="footer-tool-count" class="tag-chip bg-[var(--yellow)] border-2 border-[var(--ink)] px-2.5 py-1">03 TOOLS AVAILABLE</span>
+        <span class="text-gray-500">2026</span>
+      </div>
+    </div>
+    <div class="flex justify-center sm:justify-start">
+      <a href="https://www.buymeacoffee.com/mauree" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+    </div>
+  </div>
+</footer>
+
+<!-- ======================= SEARCH OVERLAY (Cmd/Ctrl+K) ======================= -->
+<div id="search-overlay" class="hidden fixed inset-0 z-50 bg-[var(--ink)]/40 backdrop-blur-sm items-start justify-center pt-24 px-4">
+  <div class="pixel-flat bg-white w-full max-w-lg">
+    <div class="flex items-center gap-2 px-4 py-3 border-b-[3px] border-[var(--ink)]">
+      <i data-lucide="search" class="w-4 h-4 text-gray-500" aria-hidden="true"></i>
+      <input id="overlay-search" type="text" placeholder="Search tools..."
+        class="w-full outline-none text-sm font-medium" aria-label="Search tools">
+      <button id="close-overlay-btn" type="button" class="text-gray-400 hover:text-[var(--ink)]" aria-label="Close search" title="Close">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div id="overlay-results" class="max-h-72 overflow-y-auto"></div>
+  </div>
+</div>
+
+<script>
+  // ========================================
+  // TOOL DATA
+  // ========================================
+  const tools = [
+    {
+      id: 'chart-generator',
+      name: 'CHART GENERATOR',
+      number: '01',
+      file: './chart-generator.html',
+      category: 'DATA VISUALIZATION',
+      description: 'Create clear and customizable charts from your data directly in the browser.',
+      icon: 'bar-chart-3',
+      tags: ['charts', 'data', 'visualization'],
+      color: '#525EA7'
+    },
+    {
+      id: 'subnet-calculator',
+      name: 'SUBNET CALCULATOR',
+      number: '02',
+      file: './calculator-subnet.html',
+      category: 'NETWORKING',
+      description: 'Calculate IPv4 networks, subnet masks, host ranges, VLSM allocations, and VLAN planning.',
+      icon: 'network',
+      tags: ['ipv4', 'vlsm', 'vlan', 'networking'],
+      color: '#5FACD3'
+    },
+    {
+      id: 'gantt-chart',
+      name: 'GANTT CHART',
+      number: '03',
+      file: './grantt-chart.html',
+      category: 'PROJECT MANAGEMENT',
+      description: 'Plan project tasks, dependencies, timelines, and schedules with an interactive Gantt chart.',
+      icon: 'calendar-range',
+      tags: ['project', 'timeline', 'tasks'],
+      color: '#FFC349'
+    }
+  ];
+
+  // ========================================
+  // DOM REFERENCES
+  // ========================================
+  const toolsGrid = document.getElementById('tools-grid');
+  const noResults = document.getElementById('no-results');
+  const quickAccessList = document.getElementById('quick-access-list');
+  const toolSearchInput = document.getElementById('tool-search');
+  const overlaySearchInput = document.getElementById('overlay-search');
+  const overlayResults = document.getElementById('overlay-results');
+  const searchOverlay = document.getElementById('search-overlay');
+  const openSearchBtn = document.getElementById('open-search-btn');
+  const closeOverlayBtn = document.getElementById('close-overlay-btn');
+  const randomToolBtn = document.getElementById('random-tool-btn');
+
+  // ========================================
+  // RENDER TOOLS
+  // ========================================
+  function textColorOn(hex) {
+    // simple readable-on-light check; all our accents pair with white text on the badge chip
+    return '#FFFFFF';
+  }
+
+  function renderToolCard(tool) {
+    const tagsHtml = tool.tags
+      .map(t => `<span class="tag-chip border-2 border-[var(--ink)] px-2 py-0.5 bg-white uppercase">${t}</span>`)
+      .join('');
+
+    return `
+      <div class="tool-card" role="listitem"
+        data-name="${tool.name.toLowerCase()}"
+        data-desc="${tool.description.toLowerCase()}"
+        data-category="${tool.category.toLowerCase()}"
+        data-tags="${tool.tags.join(' ').toLowerCase()}">
+        <div class="pixel-border bg-white h-full flex flex-col p-6" style="border-color:var(--ink); box-shadow:6px 6px 0 var(--ink); border-top:6px solid ${tool.color};">
+          <div class="flex items-start justify-between mb-5">
+            <span class="font-display text-3xl text-gray-300">${tool.number}</span>
+            <span class="tag-chip px-2.5 py-1 border-2 border-[var(--ink)] uppercase" style="background:${tool.color}; color:${textColorOn(tool.color)};">${tool.category}</span>
+          </div>
+
+          <div class="w-12 h-12 flex items-center justify-center border-[3px] border-[var(--ink)] mb-4" style="background:${tool.color}22;">
+            <i data-lucide="${tool.icon}" class="w-6 h-6" style="color:${tool.color};" aria-hidden="true"></i>
+          </div>
+
+          <h3 class="font-display text-2xl tracking-wide leading-tight mb-2">${tool.name}</h3>
+          <p class="text-sm text-gray-600 flex-1">${tool.description}</p>
+
+          <div class="flex flex-wrap gap-1.5 mt-4 mb-5">${tagsHtml}</div>
+
+          <a href="${tool.file}"
+            class="btn-press inline-flex items-center justify-center gap-2 border-[3px] border-[var(--ink)] font-bold text-sm tracking-wide px-4 py-3 min-h-[44px] w-full"
+            style="background:${tool.color}; color:${textColorOn(tool.color)}; box-shadow:4px 4px 0 var(--ink);"
+            aria-label="Open ${tool.name}">
+            OPEN TOOL
+            <i data-lucide="arrow-right" class="w-4 h-4" aria-hidden="true"></i>
+          </a>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTools(list) {
+    toolsGrid.innerHTML = list.map(renderToolCard).join('');
+    noResults.classList.toggle('hidden', list.length > 0);
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderQuickAccess() {
+    quickAccessList.innerHTML = tools.map(tool => `
+      <a href="${tool.file}"
+        class="flex items-center gap-4 px-5 py-4 hover:bg-[var(--light-blue)]/20 transition-colors min-h-[44px]"
+        aria-label="Open ${tool.name}">
+        <span class="font-display text-xl w-8 text-gray-400">${tool.number}</span>
+        <span class="w-8 h-8 flex items-center justify-center border-2 border-[var(--ink)] shrink-0" style="background:${tool.color}22;">
+          <i data-lucide="${tool.icon}" class="w-4 h-4" style="color:${tool.color};" aria-hidden="true"></i>
+        </span>
+        <span class="font-bold text-sm tracking-wide flex-1">${tool.name}</span>
+        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400" aria-hidden="true"></i>
+      </a>
+    `).join('');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ========================================
+  // SEARCH
+  // ========================================
+  function filterTools(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return tools;
+    return tools.filter(t =>
+      t.name.toLowerCase().includes(q) ||
+      t.description.toLowerCase().includes(q) ||
+      t.category.toLowerCase().includes(q) ||
+      t.tags.some(tag => tag.includes(q))
+    );
+  }
+
+  toolSearchInput.addEventListener('input', (e) => {
+    renderTools(filterTools(e.target.value));
+  });
+
+  function renderOverlayResults(query) {
+    const matches = filterTools(query);
+    if (matches.length === 0) {
+      overlayResults.innerHTML = `
+        <div class="text-center py-8">
+          <p class="font-display text-lg tracking-wide">NO TOOLS FOUND</p>
+          <p class="text-gray-500 text-xs mt-1">Try another keyword.</p>
+        </div>`;
+      return;
+    }
+    overlayResults.innerHTML = matches.map(tool => `
+      <a href="${tool.file}" class="flex items-center gap-3 px-4 py-3 border-b border-gray-200 last:border-0 hover:bg-[var(--light-blue)]/20">
+        <span class="w-8 h-8 flex items-center justify-center border-2 border-[var(--ink)] shrink-0" style="background:${tool.color}22;">
+          <i data-lucide="${tool.icon}" class="w-4 h-4" style="color:${tool.color};" aria-hidden="true"></i>
+        </span>
+        <span class="flex-1">
+          <span class="block font-bold text-sm">${tool.name}</span>
+          <span class="block text-xs text-gray-500">${tool.category}</span>
+        </span>
+        <i data-lucide="external-link" class="w-4 h-4 text-gray-400" aria-hidden="true"></i>
+      </a>
+    `).join('');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  overlaySearchInput.addEventListener('input', (e) => renderOverlayResults(e.target.value));
+
+  function openSearchOverlay() {
+    searchOverlay.classList.remove('hidden');
+    searchOverlay.classList.add('flex');
+    renderOverlayResults(overlaySearchInput.value);
+    overlaySearchInput.focus();
+    overlaySearchInput.select();
+  }
+
+  function closeSearchOverlay() {
+    searchOverlay.classList.add('hidden');
+    searchOverlay.classList.remove('flex');
+  }
+
+  openSearchBtn.addEventListener('click', openSearchOverlay);
+  closeOverlayBtn.addEventListener('click', closeSearchOverlay);
+  searchOverlay.addEventListener('click', (e) => {
+    if (e.target === searchOverlay) closeSearchOverlay();
+  });
+
+  // ========================================
+  // RANDOM TOOL
+  // ========================================
+  randomToolBtn.addEventListener('click', () => {
+    const files = tools.map(t => t.file);
+    const pick = files[Math.floor(Math.random() * files.length)];
+    window.location.href = pick;
+  });
+
+  // ========================================
+  // KEYBOARD SHORTCUTS
+  // ========================================
+  document.addEventListener('keydown', (e) => {
+    const isK = e.key === 'k' || e.key === 'K';
+    if ((e.metaKey || e.ctrlKey) && isK) {
+      e.preventDefault();
+      openSearchOverlay();
+    }
+    if (e.key === 'Escape' && !searchOverlay.classList.contains('hidden')) {
+      closeSearchOverlay();
+    }
+  });
+
+  // ========================================
+  // INITIALIZATION
+  // ========================================
+  function init() {
+    renderTools(tools);
+    renderQuickAccess();
+
+    const count = tools.length;
+    const countStr = String(count).padStart(2, '0');
+    document.getElementById('hero-tool-count-label').textContent = `${countStr} TOOLS AVAILABLE`;
+    document.getElementById('terminal-tool-count').textContent = count;
+    document.getElementById('footer-tool-count').textContent = `${countStr} TOOLS AVAILABLE`;
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  init();
+</script>
+
+</body>
+</html>
