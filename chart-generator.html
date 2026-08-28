@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chart Generator — Retro Pixel</title>
+<title>Chart Generator | Snatchy</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -33,6 +33,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 
 <style>
@@ -174,6 +175,22 @@
         <button id="clearAllBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase text-red-600 flex items-center justify-center gap-1.5"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear All</button>
         <button id="loadExampleBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5"><i data-lucide="database" class="w-3.5 h-3.5"></i> Example</button>
         <button id="loadDefaultBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Default</button>
+      </div>
+
+      <div class="mt-4 pt-4 border-t-2 border-dashed border-ink/25">
+        <p class="font-body text-xs font-bold uppercase text-ink/60 mb-2.5 flex items-center gap-1.5">
+          <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Import from Excel
+        </p>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="downloadTemplateBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5" title="Download an Excel template with the required Label / Value columns">
+            <i data-lucide="file-down" class="w-3.5 h-3.5"></i> Template
+          </button>
+          <button id="importExcelBtn" type="button" class="pixel-btn bg-soft/50 px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5" title="Import data from an .xlsx, .xls or .csv file">
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import Excel
+          </button>
+          <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" class="hidden">
+        </div>
+        <p class="font-body text-[10.5px] text-ink/45 mt-2 leading-snug">File must use the template's column order: <strong>Label</strong> in column A, <strong>Value</strong> in column B, starting from row 2.</p>
       </div>
     </div>
 
@@ -395,7 +412,6 @@
   };
 
   const DEFAULT_DATA = [
-    
   ];
 
   const EXAMPLE_DATA = [
@@ -1079,6 +1095,72 @@
     }, 'image/png');
   }
 
+  /* ============================================================
+     EXCEL IMPORT / TEMPLATE
+  ============================================================ */
+
+  function downloadExcelTemplate(){
+    if(typeof XLSX === 'undefined'){
+      showError('Excel library failed to load. Check your internet connection.');
+      return;
+    }
+    const rows = [
+      ['Label', 'Value'],
+      ['Januari', 99.98],
+      ['Februari', 99.97],
+      ['Maret', 99.97]
+    ];
+    const sheet = XLSX.utils.aoa_to_sheet(rows);
+    sheet['!cols'] = [{ wch: 20 }, { wch: 12 }];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, 'Data');
+    XLSX.writeFile(workbook, 'chart-data-template.xlsx');
+    showToast('Template downloaded');
+  }
+
+  function importExcelFile(file){
+    if(!file) return;
+    if(typeof XLSX === 'undefined'){
+      showError('Excel library failed to load. Check your internet connection.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try{
+        const bytes = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(bytes, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        if(!firstSheetName){
+          showError('The file does not contain any sheet.');
+          return;
+        }
+        const sheet = workbook.Sheets[firstSheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
+
+        // Expect column A = Label, column B = Value, starting at row 2
+        // (row 1 is treated as the header row and skipped).
+        const parsedData = rows.slice(1)
+          .map(row => ({ label: row && row[0] !== undefined ? String(row[0]).trim() : '', value: row ? row[1] : undefined }))
+          .filter(row => row.label !== '' && row.value !== undefined && row.value !== '' && !isNaN(Number(row.value)))
+          .map(row => ({ label: row.label, value: Number(row.value) }));
+
+        if(parsedData.length === 0){
+          showError('No valid data found. Make sure column A has labels and column B has numeric values, starting from row 2.');
+          return;
+        }
+
+        state.data = parsedData;
+        renderTable();
+        renderChart();
+        showToast(`Imported ${parsedData.length} row${parsedData.length > 1 ? 's' : ''} from Excel`);
+      }catch(err){
+        showError('Failed to read the file: ' + err.message);
+      }
+    };
+    reader.onerror = () => showError('Failed to read the selected file.');
+    reader.readAsArrayBuffer(file);
+  }
+
   function openFullscreen(){
     if(!validateData(state.data).valid){
       showError('Please fix the data errors first.');
@@ -1149,6 +1231,14 @@
 
     byId('corporatePresetBtn').addEventListener('click', applyCorporatePreset);
     byId('themeSelect').addEventListener('change', e => { applyTheme(e.target.value); syncUIFromState(); renderChart(); });
+
+    byId('downloadTemplateBtn').addEventListener('click', downloadExcelTemplate);
+    byId('importExcelBtn').addEventListener('click', () => byId('excelFileInput').click());
+    byId('excelFileInput').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      importExcelFile(file);
+      e.target.value = ''; // allow re-selecting the same file later
+    });
 
     byId('showLegend').addEventListener('change', e => { state.showLegend = e.target.checked; renderChart(); });
     byId('showDataLabels').addEventListener('change', e => { state.showDataLabels = e.target.checked; renderChart(); });
