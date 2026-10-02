@@ -3,1584 +3,571 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chart Generator — Retro Pixel</title>
+<title>SNATCHY — Simple tools for data, networking & project management.</title>
+<meta name="description" content="A personal toolbox of browser-based utilities: chart generator, subnet calculator, and Gantt chart planner.">
 
+<!-- Tailwind CSS via CDN -->
 <script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          primary: '#525EA7',
-          accent:  '#FFC349',
-          info:    '#5FACD3',
-          soft:    '#97DDE9',
-          ink:     '#1f2937',
-          paper:   '#FBF6EC'
-        },
-        fontFamily: {
-          display: ['"Bebas Neue"', 'sans-serif'],
-          body: ['Montserrat', 'sans-serif']
-        }
-      }
-    }
-  };
-</script>
 
+<!-- Lucide Icons via CDN -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<!-- Google Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/lucide@latest"></script>
-
 <style>
-  :root{ --ink:#1f2937; }
-
-  body{
-    font-family: 'Montserrat', sans-serif;
-    background-color: #FBF6EC;
-    background-image: radial-gradient(#e7ddc4 1px, transparent 1px);
-    background-size: 18px 18px;
-    color: #1f2937;
+  :root {
+    --yellow: #FFC349;
+    --purple: #525EA7;
+    --blue: #5FACD3;
+    --light-blue: #97DDE9;
+    --ink: #1E2233;
+    --bg: #F8FAFC;
   }
 
-  .font-display{ font-family: 'Bebas Neue', sans-serif; letter-spacing: .02em; }
+  * { -webkit-tap-highlight-color: transparent; }
 
-  /* Retro pixel primitives */
-  .pixel-border{ border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); }
-  .pixel-btn{
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: 'Montserrat', sans-serif;
+    background-image:
+      linear-gradient(var(--ink) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: -1px -1px;
+    background-attachment: fixed;
+    opacity-mask: none;
+  }
+  /* Very subtle grid: overlay a near-white wash so lines barely read */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-color: rgba(248, 250, 252, 0.96);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .font-display {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.02em;
+  }
+
+  /* Hard pixel-shadow utility */
+  .pixel-border {
+    border: 3px solid var(--ink);
+    box-shadow: 6px 6px 0 var(--ink);
+    transition: transform 0.12s steps(2), box-shadow 0.12s steps(2);
+  }
+  .pixel-border:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0 var(--ink);
+  }
+  .pixel-border:active {
+    transform: translate(3px, 3px);
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+
+  .pixel-flat {
     border: 3px solid var(--ink);
     box-shadow: 4px 4px 0 var(--ink);
-    transition: transform .08s ease, box-shadow .08s ease, background .1s ease;
   }
-  .pixel-btn:hover{ transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--ink); }
-  .pixel-btn:active{ transform: translate(3px,3px); box-shadow: 1px 1px 0 var(--ink); }
 
-  .pixel-input{ border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); background:#fff; transition: box-shadow .1s ease, border-color .1s ease; }
-  .pixel-input:focus{ outline:none; border-color:#525EA7; box-shadow: 3px 3px 0 #525EA7; }
+  .btn-press {
+    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
+  }
+  .btn-press:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 var(--ink) !important;
+  }
 
-  .chart-type-btn{ background:#fff; color:#1f2937; }
-  .chart-type-btn.active{ background:#525EA7; color:#fff; }
+  /* Focus visibility */
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 3px solid var(--purple);
+    outline-offset: 2px;
+  }
 
-  .section-label{
+  ::selection {
+    background: var(--yellow);
+    color: var(--ink);
+  }
+
+  /* Terminal blink caret */
+  .caret::after {
+    content: "█";
+    animation: blink 1s steps(1) infinite;
+    color: var(--yellow);
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  /* Progress bar fill (CSS only) */
+  .progress-fill {
+    animation: fillbar 1.8s steps(20) forwards;
+  }
+  @keyframes fillbar {
+    from { width: 0%; }
+    to { width: 100%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill { animation: none; width: 100%; }
+    .caret::after { animation: none; }
+    * { scroll-behavior: auto !important; }
+  }
+
+  .tag-chip {
     font-family: 'Montserrat', sans-serif;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: #525EA7;
+    font-weight: 700;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
   }
 
-  /* Always-wins visibility toggle, regardless of Tailwind utility ordering */
-  .hidden{ display:none !important; }
+  input::placeholder { color: #6B7280; opacity: 1; }
 
-  ::-webkit-scrollbar{ width:10px; height:10px; }
-  ::-webkit-scrollbar-track{ background:#FBF6EC; }
-  ::-webkit-scrollbar-thumb{ background:#525EA7; border:2px solid #FBF6EC; }
-
-  input[type="color"]{ border:3px solid var(--ink); box-shadow:2px 2px 0 var(--ink); padding:2px; background:#fff; cursor:pointer; width:34px; height:34px; }
-  input[type="checkbox"]{ accent-color:#525EA7; width:16px; height:16px; }
-  input[type="range"]{ accent-color:#525EA7; }
-
-  .empty-state-box{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .card-hidden { display: none !important; }
 </style>
 </head>
-<body class="text-ink">
+<body class="antialiased">
 
-<!-- ============ HEADER ============ -->
-<header class="pixel-border bg-white mx-3 mt-3 md:mx-6 md:mt-6 p-5 md:p-7 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-  <div class="flex items-center gap-4">
-    <div class="w-14 h-14 shrink-0 pixel-border bg-primary flex items-center justify-center">
-      <i data-lucide="bar-chart-3" class="w-7 h-7 text-white"></i>
+<!-- ======================= HEADER ======================= -->
+<header class="sticky top-0 z-40 bg-[#F8FAFC]/95 backdrop-blur border-b-[3px] border-[var(--ink)]">
+  <div class="max-w-[1240px] mx-auto px-5 sm:px-8 h-16 flex items-center justify-between gap-4">
+    <a href="#top" class="flex items-center gap-2 shrink-0" aria-label="Snatchy home">
+      <span class="w-9 h-9 flex items-center justify-center bg-[var(--purple)] border-[3px] border-[var(--ink)] shadow-[3px_3px_0_var(--ink)]" aria-hidden="true">
+        <i data-lucide="square" class="w-4 h-4 text-white"></i>
+      </span>
+      <span class="font-display text-2xl sm:text-3xl text-[var(--purple)] leading-none">SNATCHY</span>
+    </a>
+
+    <nav aria-label="Primary" class="hidden md:flex items-center gap-8 font-semibold text-sm tracking-wide">
+      <a href="#tools" class="hover:text-[var(--purple)] transition-colors">TOOLS</a>
+      <a href="#about" class="hover:text-[var(--purple)] transition-colors">ABOUT</a>
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <button id="open-search-btn" type="button"
+        class="flex items-center gap-2 pixel-flat btn-press bg-white px-3 h-10 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--light-blue)]/40"
+        aria-label="Open tool search" title="Search tools (Ctrl K)">
+        <i data-lucide="search" class="w-4 h-4" aria-hidden="true"></i>
+        <span class="hidden sm:inline">Search</span>
+        <span class="hidden sm:flex items-center gap-0.5 ml-1 text-[10px] font-bold border border-[var(--ink)] px-1.5 py-0.5 bg-[var(--yellow)]">
+          <i data-lucide="command" class="w-2.5 h-2.5" aria-hidden="true"></i>K
+        </span>
+      </button>
     </div>
-    <div>
-      <h1 class="font-display text-4xl md:text-5xl leading-none">CHART<br>GENERATOR</h1>
-      <p class="font-body text-sm text-ink/70 mt-1">Create professional charts from your data</p>
-    </div>
-  </div>
-  <div class="flex gap-3">
-    <button id="headerNewChartBtn" type="button" class="pixel-btn bg-white px-4 py-3 font-body font-bold text-xs uppercase tracking-wide flex items-center gap-2" title="Start a new chart (restores defaults)">
-      <i data-lucide="rotate-ccw" class="w-4 h-4"></i> New Chart
-    </button>
-    <button id="headerExportBtn" type="button" class="pixel-btn bg-accent px-4 py-3 font-body font-bold text-xs uppercase tracking-wide flex items-center gap-2" title="Quick export as PNG">
-      <i data-lucide="download" class="w-4 h-4"></i> Export
-    </button>
   </div>
 </header>
 
-<!-- ============ MAIN LAYOUT ============ -->
-<main class="grid grid-cols-1 lg:grid-cols-[35%_65%] gap-6 p-3 md:p-6">
+<main id="top">
 
-  <!-- ============ LEFT: SETTINGS ============ -->
-  <section class="flex flex-col gap-6" aria-label="Chart settings">
+  <!-- ======================= HERO ======================= -->
+  <section class="max-w-[1240px] mx-auto px-5 sm:px-8 pt-14 pb-16 sm:pt-20 sm:pb-20">
+    <div class="grid md:grid-cols-2 gap-12 items-center">
 
-    <!-- 01 CHART TYPE -->
-    <div class="pixel-border bg-white p-5">
-      <p class="section-label mb-3">01 / Chart Type</p>
-      <div id="chartTypeGroup" class="grid grid-cols-3 gap-2" role="group" aria-label="Chart type">
-        <button type="button" class="chart-type-btn pixel-btn flex flex-col items-center justify-center gap-1 py-3" data-type="line" title="Line Chart" aria-pressed="false">
-          <i data-lucide="line-chart" class="w-5 h-5"></i>
-          <span class="font-body text-[10px] font-bold uppercase">Line</span>
-        </button>
-        <button type="button" class="chart-type-btn pixel-btn flex flex-col items-center justify-center gap-1 py-3" data-type="bar" title="Bar Chart" aria-pressed="false">
-          <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
-          <span class="font-body text-[10px] font-bold uppercase">Bar</span>
-        </button>
-        <button type="button" class="chart-type-btn pixel-btn flex flex-col items-center justify-center gap-1 py-3" data-type="area" title="Area Chart" aria-pressed="false">
-          <i data-lucide="trending-up" class="w-5 h-5"></i>
-          <span class="font-body text-[10px] font-bold uppercase">Area</span>
-        </button>
-        <button type="button" class="chart-type-btn pixel-btn flex flex-col items-center justify-center gap-1 py-3" data-type="doughnut" title="Doughnut Chart" aria-pressed="false">
-          <i data-lucide="circle" class="w-5 h-5"></i>
-          <span class="font-body text-[10px] font-bold uppercase">Donut</span>
-        </button>
-        <button type="button" class="chart-type-btn pixel-btn flex flex-col items-center justify-center gap-1 py-3" data-type="pie" title="Pie Chart" aria-pressed="false">
-          <i data-lucide="pie-chart" class="w-5 h-5"></i>
-          <span class="font-body text-[10px] font-bold uppercase">Pie</span>
-        </button>
-      </div>
-      <div class="mt-4">
-        <label for="templateSelect" class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5">Template</label>
-        <select id="templateSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
-          <option value="">— Choose a template —</option>
-          <option value="performance">Performance (SLA / Uptime)</option>
-          <option value="sales">Sales / Revenue</option>
-          <option value="financial">Financial</option>
-          <option value="simple">Simple / Minimal</option>
-        </select>
-      </div>
-      <div class="mt-3.5 hidden" id="pieCategoryField">
-        <label for="pieCategorySelect" class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5">Category to Display</label>
-        <select id="pieCategorySelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm"></select>
-        <p class="font-body text-[10.5px] text-ink/45 mt-1.5 leading-snug">Pie / doughnut charts can only show one category at a time.</p>
-      </div>
-    </div>
+      <div>
+        <div class="inline-flex items-center gap-2 bg-[var(--yellow)] border-[3px] border-[var(--ink)] px-3 py-1.5 mb-6 shadow-[4px_4px_0_var(--ink)]">
+          <span class="w-2 h-2 rounded-full bg-[var(--ink)] inline-block" aria-hidden="true"></span>
+          <span class="text-xs font-extrabold tracking-wider" id="hero-tool-count-label">03 TOOLS AVAILABLE</span>
+        </div>
 
-    <!-- 02 DATA -->
-    <div class="pixel-border bg-white p-5">
-      <p class="section-label mb-3">02 / Data</p>
+        <h1 class="font-display text-6xl sm:text-7xl leading-[0.95] text-[var(--ink)]">
+          YOUR DIGITAL<br><span class="text-[var(--purple)]">SNATCHY</span>
+        </h1>
 
-      <p class="font-body text-xs font-bold uppercase text-ink/60 mb-2">Categories</p>
-      <div id="categoryChips" class="flex flex-wrap gap-2 mb-3"></div>
-      <button id="addCategoryBtn" type="button" class="pixel-btn bg-soft/40 px-3 py-2 font-body text-[11px] font-bold uppercase flex items-center gap-1.5 mb-4">
-        <i data-lucide="tags" class="w-3.5 h-3.5"></i> Add Category
-      </button>
-
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm font-body">
-          <thead id="dataTableHead"></thead>
-          <tbody id="dataTableBody"></tbody>
-        </table>
-      </div>
-      <div class="grid grid-cols-2 gap-2 mt-4">
-        <button id="addRowBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Data</button>
-        <button id="clearAllBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase text-red-600 flex items-center justify-center gap-1.5"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear All</button>
-        <button id="loadExampleBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5"><i data-lucide="database" class="w-3.5 h-3.5"></i> Example</button>
-        <button id="loadDefaultBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Default</button>
-      </div>
-
-      <div class="mt-4 pt-4 border-t-2 border-dashed border-ink/25">
-        <p class="font-body text-xs font-bold uppercase text-ink/60 mb-2.5 flex items-center gap-1.5">
-          <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Import from Excel
+        <p class="mt-6 text-base sm:text-lg text-gray-600 max-w-md">
+          Simple browser-based tools for data, networking, and project management.
         </p>
-        <div class="grid grid-cols-2 gap-2">
-          <button id="downloadTemplateBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5" title="Download the current data as an editable Excel template">
-            <i data-lucide="file-down" class="w-3.5 h-3.5"></i> Template
+
+        <div class="mt-8 flex flex-wrap items-center gap-4">
+          <a href="#tools"
+            class="pixel-border btn-press bg-[var(--purple)] text-white font-bold text-sm tracking-wide px-6 py-3.5 inline-flex items-center gap-2 min-h-[44px]">
+            EXPLORE TOOLS
+            <i data-lucide="arrow-right" class="w-4 h-4" aria-hidden="true"></i>
+          </a>
+          <button id="random-tool-btn" type="button"
+            class="pixel-border btn-press bg-white font-bold text-sm tracking-wide px-6 py-3.5 inline-flex items-center gap-2 min-h-[44px]">
+            RANDOM TOOL
+            <i data-lucide="zap" class="w-4 h-4" aria-hidden="true"></i>
           </button>
-          <button id="importExcelBtn" type="button" class="pixel-btn bg-soft/50 px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5" title="Import data from an .xlsx, .xls or .csv file">
-            <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import Excel
-          </button>
-          <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" class="hidden">
         </div>
-        <p class="font-body text-[10.5px] text-ink/45 mt-2 leading-snug">Column A = <strong>Label</strong>. Every column after that is a category — its header becomes the category name. Add as many category columns as you need.</p>
       </div>
-    </div>
 
-    <!-- 03 TITLES & LABELS -->
-    <div class="pixel-border bg-white p-5">
-      <p class="section-label mb-3">03 / Titles &amp; Labels</p>
-      <div class="space-y-3.5">
-        <div>
-          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="titleInput">Chart Title</label>
-          <input type="text" id="titleInput" class="pixel-input w-full px-3 py-2.5 font-body text-sm" placeholder="e.g. Monthly Performance">
-        </div>
-        <div>
-          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="subtitleInput">Subtitle</label>
-          <input type="text" id="subtitleInput" class="pixel-input w-full px-3 py-2.5 font-body text-sm" placeholder="Optional subtitle">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="xAxisLabelInput">X Axis</label>
-            <input type="text" id="xAxisLabelInput" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
+      <!-- HERO VISUAL: CSS-only retro terminal -->
+      <div class="justify-self-center w-full max-w-sm" aria-hidden="true">
+        <div class="pixel-flat bg-[var(--ink)] text-[var(--light-blue)] font-mono text-sm">
+          <div class="flex items-center gap-1.5 px-3 py-2 border-b-[3px] border-white/20 bg-white/5">
+            <span class="w-2.5 h-2.5 rounded-full bg-[var(--yellow)]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[var(--blue)]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[var(--light-blue)]"></span>
+            <span class="ml-2 text-[11px] tracking-wider text-white/60">SNATCHY.EXE</span>
           </div>
-          <div>
-            <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="yAxisLabelInput">Y Axis</label>
-            <input type="text" id="yAxisLabelInput" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
+          <div class="p-4 space-y-2 text-[13px] leading-relaxed">
+            <p>&gt; SYSTEM READY</p>
+            <p>&gt; <span id="terminal-tool-count">3</span> TOOLS LOADED</p>
+            <p class="caret">&gt; SELECT TOOL</p>
+            <div class="mt-3 h-3 w-full bg-white/10 border border-white/20 overflow-hidden">
+              <div class="progress-fill h-full bg-[var(--yellow)]"></div>
+            </div>
+            <p class="text-[11px] text-white/50 pt-1">100%</p>
           </div>
         </div>
-        <div>
-          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="dataFormatSelect">Data Format</label>
-          <select id="dataFormatSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
-            <option value="number">Number</option>
-            <option value="percentage">Percentage</option>
-            <option value="currency">Currency (Rp)</option>
-            <option value="decimal">Decimal</option>
-          </select>
-        </div>
       </div>
-    </div>
-
-    <!-- 04 APPEARANCE -->
-    <div class="pixel-border bg-white p-5">
-      <p class="section-label mb-3">04 / Appearance</p>
-
-      <button id="corporatePresetBtn" type="button" class="pixel-btn w-full bg-soft/50 px-3 py-3 font-body text-xs font-bold uppercase flex items-center justify-center gap-2 mb-4">
-        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Corporate Performance Preset
-      </button>
-
-      <div class="mb-3.5">
-        <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="themeSelect">Theme</label>
-        <select id="themeSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
-          <option value="corporate">Corporate</option>
-          <option value="green">Green</option>
-          <option value="blue">Blue</option>
-          <option value="purple">Purple</option>
-          <option value="orange">Orange</option>
-          <option value="red">Red</option>
-          <option value="monochrome">Monochrome</option>
-        </select>
-      </div>
-
-      <div class="grid grid-cols-2 gap-x-3 mb-3.5 font-body text-xs">
-        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="showLegend"> Legend</label>
-        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="showDataLabels"> Data Labels</label>
-        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="showGrid"> Grid</label>
-        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="showPoints"> Points</label>
-        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="smoothLine"> Smooth Line</label>
-        <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="fillArea"> Fill Area</label>
-      </div>
-
-      <div class="mb-3.5 hidden" id="stackedField">
-        <label class="flex items-center gap-2 py-1.5 font-body text-xs font-semibold"><input type="checkbox" id="stackedBars"> Stacked Bars</label>
-        <p class="font-body text-[10.5px] text-ink/45 leading-snug">Stack all categories into one bar per label — with a total shown on top — instead of grouping them side by side.</p>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3 mb-3.5">
-        <div>
-          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5">Line Width <span id="lineWidthVal" class="text-primary"></span></label>
-          <input type="range" id="lineWidth" min="1" max="8" step="1" class="w-full">
-        </div>
-        <div>
-          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5">Point Size <span id="pointSizeVal" class="text-primary"></span></label>
-          <input type="range" id="pointSize" min="2" max="10" step="1" class="w-full">
-        </div>
-      </div>
-
-      <div class="mb-4">
-        <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="pointStyle">Marker Style</label>
-        <select id="pointStyle" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
-          <option value="rect">Square</option>
-          <option value="circle">Circle</option>
-          <option value="triangle">Triangle</option>
-          <option value="star">Star</option>
-          <option value="crossRot">Cross</option>
-        </select>
-      </div>
-
-      <p class="font-body text-xs font-bold uppercase text-ink/60 mb-2">Chart Colors</p>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="flex items-center gap-2"><input type="color" id="colorBackground"><span class="font-body text-xs">Chart Area</span></div>
-        <div class="flex items-center gap-2"><input type="color" id="colorGrid"><span class="font-body text-xs">Grid</span></div>
-      </div>
-      <p class="font-body text-[10.5px] text-ink/45 mt-2 leading-snug">Line / bar / point colors per category are managed in the <strong>02 / Data</strong> panel above.</p>
 
     </div>
-
-    <!-- 05 EXPORT SETUP -->
-    <div class="pixel-border bg-white p-5">
-      <p class="section-label mb-3">05 / Export Setup</p>
-      <div class="mb-3.5">
-        <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="exportBgSelect">Background</label>
-        <select id="exportBgSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
-          <option value="white">White</option>
-          <option value="transparent">Transparent</option>
-          <option value="custom">Custom Color</option>
-        </select>
-      </div>
-      <div class="mb-3.5" id="exportBgColorField">
-        <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="exportBgColor">Custom Background</label>
-        <input type="color" id="exportBgColor">
-      </div>
-      <div class="mb-3.5">
-        <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="resolutionSelect">Image Size</label>
-        <select id="resolutionSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
-          <option value="1280x720">1280 × 720</option>
-          <option value="1920x1080">1920 × 1080 (Full HD)</option>
-          <option value="2560x1440">2560 × 1440 (2K)</option>
-          <option value="3840x2160">3840 × 2160 (4K)</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-      <div class="grid grid-cols-2 gap-3" id="customResolutionFields">
-        <div>
-          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="customWidth">Width</label>
-          <input type="number" id="customWidth" class="pixel-input w-full px-3 py-2.5 font-body text-sm" min="100" max="6000">
-        </div>
-        <div>
-          <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="customHeight">Height</label>
-          <input type="number" id="customHeight" class="pixel-input w-full px-3 py-2.5 font-body text-sm" min="100" max="6000">
-        </div>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-2 gap-3 pb-2">
-      <button id="generateBtn" type="button" class="pixel-btn bg-primary text-white px-4 py-4 font-body font-bold text-sm uppercase flex items-center justify-center gap-2"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Generate</button>
-      <button id="resetBtn" type="button" class="pixel-btn bg-white px-4 py-4 font-body font-bold text-sm uppercase flex items-center justify-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset</button>
-    </div>
-
   </section>
 
-  <!-- ============ RIGHT: PREVIEW ============ -->
-  <section class="flex flex-col gap-6" aria-label="Chart preview">
-    <div class="pixel-border bg-white flex flex-col">
-
-      <div class="flex items-center justify-between px-5 py-4 border-b-[3px] border-ink flex-wrap gap-3">
-        <p class="section-label">Chart Preview</p>
-        <button id="fullscreenBtn" type="button" class="pixel-btn bg-white px-3 py-2 font-body text-xs font-bold uppercase flex items-center gap-1.5"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> Fullscreen</button>
+  <!-- ======================= TOOLS SECTION ======================= -->
+  <section id="tools" class="max-w-[1240px] mx-auto px-5 sm:px-8 py-16 sm:py-20">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-10">
+      <div>
+        <p class="tag-chip text-[var(--purple)] mb-1">/ 02</p>
+        <h2 class="font-display text-4xl sm:text-5xl leading-none">AVAILABLE TOOLS</h2>
+        <p class="text-gray-600 mt-2">Small tools. Practical results.</p>
       </div>
 
-      <div class="px-5 pt-4 flex flex-wrap gap-3" id="statsBar"></div>
-
-      <div id="errorMessage" role="alert" class="mx-5 mt-3 px-4 py-3 border-2 border-red-500 bg-red-50 text-red-700 font-body text-xs font-semibold" style="display:none;"></div>
-
-      <div class="p-5">
-        <div class="chart-canvas-wrap relative w-full pixel-border bg-white" id="canvasWrap" style="min-height:440px;">
-          <canvas id="previewCanvas" class="absolute inset-0 w-full h-full"></canvas>
-          <div class="empty-state-box hidden text-center font-body text-sm text-ink/50 p-6" id="emptyState">No chart to display.<br>Add valid data to see a preview.</div>
+      <!-- SEARCH -->
+      <div class="w-full sm:w-80">
+        <label for="tool-search" class="block tag-chip text-gray-500 mb-2">SEARCH TOOLS</label>
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden="true"></i>
+          <input id="tool-search" type="text" placeholder="Search tools..."
+            class="pixel-flat w-full bg-white pl-10 pr-16 h-11 text-sm font-medium focus:outline-none"
+            aria-label="Search tools by name, description, category or tag">
+          <span class="hidden sm:flex items-center gap-0.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold border border-[var(--ink)] px-1.5 py-0.5 bg-[var(--yellow)]" aria-hidden="true">
+            <i data-lucide="command" class="w-2.5 h-2.5"></i>K
+          </span>
         </div>
       </div>
+    </div>
 
-      <div class="px-5 pb-3">
-        <p class="font-body text-[11px] text-ink/50 uppercase tracking-wide">Data source: Manual input</p>
+    <div id="tools-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6" role="list">
+      <!-- Tool cards injected by JS -->
+    </div>
+
+    <!-- No results state -->
+    <div id="no-results" class="hidden text-center py-16 pixel-flat bg-white mt-6">
+      <i data-lucide="search-x" class="w-8 h-8 mx-auto mb-3 text-gray-400" aria-hidden="true"></i>
+      <p class="font-display text-2xl tracking-wide">NO TOOLS FOUND</p>
+      <p class="text-gray-500 text-sm mt-1">Try another keyword.</p>
+    </div>
+  </section>
+
+  <!-- ======================= QUICK ACCESS ======================= -->
+  <section class="max-w-[1240px] mx-auto px-5 sm:px-8 pb-16 sm:pb-20">
+    <p class="tag-chip text-[var(--purple)] mb-1">/ 03</p>
+    <h2 class="font-display text-3xl sm:text-4xl leading-none mb-6">QUICK ACCESS</h2>
+
+    <div id="quick-access-list" class="pixel-flat bg-white divide-y-[3px] divide-[var(--ink)]">
+      <!-- Quick access rows injected by JS -->
+    </div>
+  </section>
+
+  <!-- ======================= ABOUT / FEATURES ======================= -->
+  <section id="about" class="max-w-[1240px] mx-auto px-5 sm:px-8 py-16 border-t-[3px] border-[var(--ink)]">
+    <div class="mb-10">
+      <p class="tag-chip text-[var(--purple)] mb-1">/ 04</p>
+      <h2 class="font-display text-4xl sm:text-5xl leading-none">WHY THIS SNATCHY?</h2>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-6">
+      <div class="pixel-flat bg-white p-6">
+        <p class="font-display text-3xl text-[var(--purple)] mb-3">01</p>
+        <div class="w-10 h-10 flex items-center justify-center bg-[var(--light-blue)]/50 border-2 border-[var(--ink)] mb-3">
+          <i data-lucide="cloud-off" class="w-5 h-5" aria-hidden="true"></i>
+        </div>
+        <h3 class="font-display text-xl tracking-wide mb-1">NO INSTALLATION</h3>
+        <p class="text-sm text-gray-600">Everything runs directly in your browser.</p>
       </div>
 
-      <div class="border-t-2 border-ink/10 px-5 py-4 flex flex-wrap gap-2">
-        <span class="section-label self-center mr-1">Export</span>
-        <button id="downloadPngBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center gap-1.5 flex-1 justify-center min-w-[110px]"><i data-lucide="image" class="w-3.5 h-3.5"></i> PNG</button>
-        <button id="downloadJpgBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center gap-1.5 flex-1 justify-center min-w-[110px]"><i data-lucide="file-output" class="w-3.5 h-3.5"></i> JPG</button>
-        <button id="downloadSvgBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center gap-1.5 flex-1 justify-center min-w-[110px]"><i data-lucide="file-code" class="w-3.5 h-3.5"></i> SVG</button>
-        <button id="copyImageBtn" type="button" class="pixel-btn bg-accent px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center gap-1.5 flex-1 justify-center min-w-[110px]"><i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy</button>
+      <div class="pixel-flat bg-white p-6">
+        <p class="font-display text-3xl text-[var(--purple)] mb-3">02</p>
+        <div class="w-10 h-10 flex items-center justify-center bg-[var(--light-blue)]/50 border-2 border-[var(--ink)] mb-3">
+          <i data-lucide="layers" class="w-5 h-5" aria-hidden="true"></i>
+        </div>
+        <h3 class="font-display text-xl tracking-wide mb-1">SIMPLE TOOLS</h3>
+        <p class="text-sm text-gray-600">Focused utilities without unnecessary complexity.</p>
+      </div>
+
+      <div class="pixel-flat bg-white p-6">
+        <p class="font-display text-3xl text-[var(--purple)] mb-3">03</p>
+        <div class="w-10 h-10 flex items-center justify-center bg-[var(--light-blue)]/50 border-2 border-[var(--ink)] mb-3">
+          <i data-lucide="zap" class="w-5 h-5" aria-hidden="true"></i>
+        </div>
+        <h3 class="font-display text-xl tracking-wide mb-1">FAST WORKFLOW</h3>
+        <p class="text-sm text-gray-600">Open a tool, enter your data, and get results.</p>
       </div>
     </div>
   </section>
 
 </main>
 
-<footer class="text-center font-body text-[11px] text-ink/50 uppercase tracking-wide py-6 px-4">Runs entirely in your browser — data is stored only in this device's local storage.</footer>
+<!-- ======================= FOOTER ======================= -->
+<footer class="border-t-[3px] border-[var(--ink)] bg-white">
+  <div class="max-w-[1240px] mx-auto px-5 sm:px-8 py-10 flex flex-col gap-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <p class="font-display text-2xl text-[var(--purple)]">SNATCHY</p>
+        <p class="text-sm text-gray-600 mt-1">Simple tools for everyday work.</p>
+      </div>
+      <div class="flex items-center gap-6 text-sm font-semibold">
+        <span id="footer-tool-count" class="tag-chip bg-[var(--yellow)] border-2 border-[var(--ink)] px-2.5 py-1">03 TOOLS AVAILABLE</span>
+        <span class="text-gray-500">2026</span>
+      </div>
+    </div>
+    <div class="flex justify-center sm:justify-start">
+      <a href="https://www.buymeacoffee.com/mauree" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+    </div>
+  </div>
+</footer>
 
-<!-- ============ FULLSCREEN MODAL ============ -->
-<div id="fullscreenModal" class="fixed inset-0 bg-ink/70 items-center justify-center p-6 z-[100] hidden flex">
-  <div class="pixel-border bg-white relative w-full max-w-5xl p-5" style="height:min(720px,90vh);">
-    <button id="fsCloseBtn" type="button" class="pixel-btn bg-white w-9 h-9 flex items-center justify-center absolute top-3 right-3 z-10" aria-label="Close fullscreen preview"><i data-lucide="x" class="w-4 h-4"></i></button>
-    <canvas id="fsCanvas" class="w-full h-full"></canvas>
+<!-- ======================= SEARCH OVERLAY (Cmd/Ctrl+K) ======================= -->
+<div id="search-overlay" class="hidden fixed inset-0 z-50 bg-[var(--ink)]/40 backdrop-blur-sm items-start justify-center pt-24 px-4">
+  <div class="pixel-flat bg-white w-full max-w-lg">
+    <div class="flex items-center gap-2 px-4 py-3 border-b-[3px] border-[var(--ink)]">
+      <i data-lucide="search" class="w-4 h-4 text-gray-500" aria-hidden="true"></i>
+      <input id="overlay-search" type="text" placeholder="Search tools..."
+        class="w-full outline-none text-sm font-medium" aria-label="Search tools">
+      <button id="close-overlay-btn" type="button" class="text-gray-400 hover:text-[var(--ink)]" aria-label="Close search" title="Close">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div id="overlay-results" class="max-h-72 overflow-y-auto"></div>
   </div>
 </div>
 
-<!-- ============ TOAST ============ -->
-<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-2 opacity-0 pointer-events-none transition-all duration-200 pixel-border bg-ink text-paper px-5 py-3 font-body text-xs font-bold uppercase flex items-center gap-2 z-[200]">
-  <i data-lucide="check-circle" class="w-4 h-4"></i>
-  <span id="toastText"></span>
-</div>
-
 <script>
-(function(){
-  'use strict';
-
-  /* ============================================================
-     APP STATE
-  ============================================================ */
-
-  const LS_KEY = 'chartGeneratorState_v1';
-
-  const CATEGORY_PALETTE = ['#525EA7', '#FFC349', '#5FACD3', '#97DDE9', '#3FA34D', '#E0736B', '#7C6FC4', '#F2A65A'];
-
-  const THEMES = {
-    corporate:  { palette:['#525EA7','#3FA34D','#F2A65A','#7C6FC4'], grid:'#D9E6EC' },
-    green:      { palette:['#3FA34D','#7BC96F','#5FACD3','#F2A65A'], grid:'#D9E6EC' },
-    blue:       { palette:['#5FACD3','#3A78C2','#97DDE9','#525EA7'], grid:'#D9E6EC' },
-    purple:     { palette:['#7C6FC4','#525EA7','#97DDE9','#E0736B'], grid:'#D9E6EC' },
-    orange:     { palette:['#F2A65A','#E8892D','#FFC349','#E0736B'], grid:'#D9E6EC' },
-    red:        { palette:['#E0736B','#D9534F','#F2A65A','#7C6FC4'], grid:'#D9E6EC' },
-    monochrome: { palette:['#4B5563','#94A3B8','#1f2937','#CBD5E1'], grid:'#D9E6EC' }
-  };
-
-  const TEMPLATES = {
-    performance: { chartType:'line', dataFormat:'percentage', showLegend:false, showGrid:true,  showDataLabels:true,  yAxisLabel:'Performance (%)', theme:'corporate' },
-    sales:       { chartType:'bar',  dataFormat:'currency',   showLegend:false, showGrid:true,  showDataLabels:true,  yAxisLabel:'Revenue',         theme:'blue' },
-    financial:   { chartType:'area', dataFormat:'currency',   showLegend:false, showGrid:true,  showDataLabels:false, yAxisLabel:'Amount',          theme:'green' },
-    simple:      { chartType:'line', dataFormat:'number',     showLegend:false, showGrid:false, showDataLabels:false, yAxisLabel:'',                theme:'monochrome' }
-  };
-
-  // Default dataset — a single category, kept identical to the app's original behaviour.
-  const DEFAULT_DATA = [
-    { label:'Januari',   values:[99.98] },
-    { label:'Februari',  values:[99.97] },
-    { label:'Maret',     values:[99.97] },
-    { label:'April',     values:[100.00] },
-    { label:'Mei',       values:[100.00] },
-    { label:'Juni',      values:[99.99] },
-    { label:'Juli',      values:[99.96] },
-    { label:'Agustus',   values:[99.99] },
-    { label:'September', values:[99.99] },
-    { label:'Oktober',   values:[99.97] },
-    { label:'November',  values:[99.98] },
-    { label:'Desember',  values:[99.98] }
+  // ========================================
+  // TOOL DATA
+  // ========================================
+  const tools = [
+    {
+      id: 'chart-generator',
+      name: 'CHART GENERATOR',
+      number: '01',
+      file: './chart-generator.html',
+      category: 'DATA VISUALIZATION',
+      description: 'Create clear and customizable charts from your data directly in the browser.',
+      icon: 'bar-chart-3',
+      tags: ['charts', 'data', 'visualization'],
+      color: '#525EA7'
+    },
+    {
+      id: 'subnet-calculator',
+      name: 'SUBNET CALCULATOR',
+      number: '02',
+      file: './calculator-subnet.html',
+      category: 'NETWORKING',
+      description: 'Calculate IPv4 networks, subnet masks, host ranges, VLSM allocations, and VLAN planning.',
+      icon: 'network',
+      tags: ['ipv4', 'vlsm', 'vlan', 'networking'],
+      color: '#5FACD3'
+    },
+    {
+      id: 'gantt-chart',
+      name: 'GANTT CHART',
+      number: '03',
+      file: './gantt-chart.html',
+      category: 'PROJECT MANAGEMENT',
+      description: 'Plan project tasks, dependencies, timelines, and schedules with an interactive Gantt chart.',
+      icon: 'calendar-range',
+      tags: ['project', 'timeline', 'tasks'],
+      color: '#FFC349'
+    }
   ];
 
-  // Multi-category example — a stacked "service breakdown" chart with a
-  // grand total on top of each bar (Internet + IPVPN + Metro + Starlink).
-  const EXAMPLE_CATEGORIES = ['Internet', 'IPVPN', 'Metro', 'Starlink'];
-  const EXAMPLE_CATEGORY_COLORS = ['#1F3B73', '#5FACD3', '#3FA34D', '#F2A65A'];
-  const EXAMPLE_DATA = [
-    { label:'Januari',  values:[98, 4, 3, 2] },
-    { label:'Februari', values:[98, 5, 2, 2] },
-    { label:'Maret',    values:[150, 5, 4, 18] },
-    { label:'April',    values:[150, 5, 4, 18] },
-    { label:'Mei',      values:[150, 5, 4, 18] },
-    { label:'Juni',     values:[150, 5, 4, 18] }
-  ];
+  // ========================================
+  // DOM REFERENCES
+  // ========================================
+  const toolsGrid = document.getElementById('tools-grid');
+  const noResults = document.getElementById('no-results');
+  const quickAccessList = document.getElementById('quick-access-list');
+  const toolSearchInput = document.getElementById('tool-search');
+  const overlaySearchInput = document.getElementById('overlay-search');
+  const overlayResults = document.getElementById('overlay-results');
+  const searchOverlay = document.getElementById('search-overlay');
+  const openSearchBtn = document.getElementById('open-search-btn');
+  const closeOverlayBtn = document.getElementById('close-overlay-btn');
+  const randomToolBtn = document.getElementById('random-tool-btn');
 
-  function buildDefaultState(){
-    return {
-      chartType: 'line',
-      title: 'Rata-rata Performansi Lintasarta per Bulan (Tahun 2025)',
-      subtitle: '',
-      xAxisLabel: '',
-      yAxisLabel: '',
-      showLegend: false,
-      showDataLabels: true,
-      showGrid: true,
-      showPoints: true,
-      smoothLine: false,
-      fillArea: false,
-      lineWidth: 2,
-      pointSize: 5,
-      pointStyle: 'rect',
-      dataFormat: 'percentage',
-      theme: 'corporate',
-      stacked: false,
-      colors: { background:'#FFFFFF', grid:'#D9E6EC' },
-      categories: ['Performance'],
-      categoryColors: ['#525EA7'],
-      pieCategoryIndex: 0,
-      exportBg: 'white',
-      exportBgColor: '#FFFFFF',
-      resolution: '1920x1080',
-      customWidth: 1920,
-      customHeight: 1080,
-      data: clone(DEFAULT_DATA)
-    };
-  }
-
-  function clone(o){ return JSON.parse(JSON.stringify(o)); }
-
-  let state = buildDefaultState();
-  let chartInstance = null;
-  let fsChartInstance = null;
-
-  /* ============================================================
-     INITIALIZATION
-  ============================================================ */
-
-  function byId(id){ return document.getElementById(id); }
-
-  function refreshIcons(){
-    if(window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
-  }
-
-  function init(){
-    const saved = loadFromLocalStorage();
-    state = saved || buildDefaultState();
-    bindEvents();
-    syncUIFromState();
-    renderTable();
-    renderChart();
-    refreshIcons();
-  }
-
-  /* ============================================================
-     HELPERS
-  ============================================================ */
-
-  function escapeHtml(str){
-    return String(str ?? '').replace(/[&<>"']/g, c => ({
-      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
-    }[c]));
-  }
-
-  function hexToRgba(hex, alpha){
-    const h = hex.replace('#','');
-    const bigint = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
-    const r = (bigint >> 16) & 255, g = (bigint >> 8) & 255, b = bigint & 255;
-    return `rgba(${r},${g},${b},${alpha})`;
-  }
-
-  function hexToHsl(hex){
-    let h = hex.replace('#','');
-    if(h.length === 3) h = h.split('').map(c=>c+c).join('');
-    const r = parseInt(h.substr(0,2),16)/255, g = parseInt(h.substr(2,2),16)/255, b = parseInt(h.substr(4,2),16)/255;
-    const max = Math.max(r,g,b), min = Math.min(r,g,b);
-    let hh, s, l = (max+min)/2;
-    if(max === min){ hh = 0; s = 0; }
-    else{
-      const d = max - min;
-      s = l > 0.5 ? d/(2-max-min) : d/(max+min);
-      switch(max){
-        case r: hh = (g-b)/d + (g<b?6:0); break;
-        case g: hh = (b-r)/d + 2; break;
-        default: hh = (r-g)/d + 4;
-      }
-      hh *= 60;
-    }
-    return { h:hh, s:s*100, l:l*100 };
-  }
-
-  function hslToHex(h, s, l){
-    s/=100; l/=100;
-    const k = n => (n + h/30) % 12;
-    const a = s * Math.min(l, 1-l);
-    const f = n => l - a * Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1)));
-    const toHex = x => Math.round(255*x).toString(16).padStart(2,'0');
-    return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
-  }
-
-  function generatePalette(n, baseHex){
-    const { h, s, l } = hexToHsl(baseHex);
-    const colors = [];
-    for(let i=0; i<Math.max(n,1); i++){
-      const hue = (h + i * (360 / Math.max(n,1))) % 360;
-      colors.push(hslToHex(hue, Math.max(s,45), Math.min(Math.max(l,40),60)));
-    }
-    return colors;
-  }
-
-  function formatValue(value, format){
-    const num = Number(value);
-    if(isNaN(num)) return '';
-    switch(format){
-      case 'percentage': return num.toFixed(2) + '%';
-      case 'currency': return 'Rp ' + Math.round(num).toLocaleString('id-ID');
-      case 'decimal': return num.toFixed(2);
-      case 'number':
-      default: return num.toLocaleString('id-ID');
-    }
-  }
-
-  function showToast(msg){
-    const t = byId('toast');
-    const txt = byId('toastText');
-    txt.textContent = msg;
-    t.classList.remove('opacity-0','pointer-events-none','translate-y-2');
-    t.classList.add('opacity-100','translate-y-0');
-    clearTimeout(showToast._timer);
-    showToast._timer = setTimeout(() => {
-      t.classList.add('opacity-0','pointer-events-none','translate-y-2');
-      t.classList.remove('opacity-100','translate-y-0');
-    }, 2200);
-  }
-
-  function showError(msg){
-    const el = byId('errorMessage');
-    el.textContent = msg;
-    el.style.display = 'block';
-  }
-  function hideError(){
-    byId('errorMessage').style.display = 'none';
-  }
-
-  function downloadUrl(url, filename){
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
-
-  function getResolution(){
-    if(state.resolution === 'custom'){
-      return { w: Math.max(100, Number(state.customWidth) || 1920), h: Math.max(100, Number(state.customHeight) || 1080) };
-    }
-    const [w,h] = state.resolution.split('x').map(Number);
-    return { w, h };
-  }
-
-  function getExportBackgroundColor(){
-    if(state.exportBg === 'transparent') return null;
-    if(state.exportBg === 'custom') return state.exportBgColor;
+  // ========================================
+  // RENDER TOOLS
+  // ========================================
+  function textColorOn(hex) {
+    // simple readable-on-light check; all our accents pair with white text on the badge chip
     return '#FFFFFF';
   }
 
-  /* ============================================================
-     DATA MANAGEMENT / VALIDATION
-  ============================================================ */
+  function renderToolCard(tool) {
+    const tagsHtml = tool.tags
+      .map(t => `<span class="tag-chip border-2 border-[var(--ink)] px-2 py-0.5 bg-white uppercase">${t}</span>`)
+      .join('');
 
-  function validateData(data, categories){
-    if(!categories || categories.length === 0){
-      return { valid:false, message: 'Please add at least one category.' };
-    }
-    if(!data || data.length === 0){
-      return { valid:false, message: 'Please add at least one data row.' };
-    }
-    for(let i=0; i<data.length; i++){
-      const row = data[i];
-      if(!row.label || !String(row.label).trim()){
-        return { valid:false, message: `Row ${i+1}: Label must not be empty.` };
-      }
-      for(let j=0; j<categories.length; j++){
-        const v = row.values ? row.values[j] : undefined;
-        if(v === '' || v === null || v === undefined || isNaN(Number(v))){
-          return { valid:false, message: `Row ${i+1} (${categories[j]}): Value must be a valid number.` };
-        }
-      }
-    }
-    return { valid:true };
-  }
+    return `
+      <div class="tool-card" role="listitem"
+        data-name="${tool.name.toLowerCase()}"
+        data-desc="${tool.description.toLowerCase()}"
+        data-category="${tool.category.toLowerCase()}"
+        data-tags="${tool.tags.join(' ').toLowerCase()}">
+        <div class="pixel-border bg-white h-full flex flex-col p-6" style="border-color:var(--ink); box-shadow:6px 6px 0 var(--ink); border-top:6px solid ${tool.color};">
+          <div class="flex items-start justify-between mb-5">
+            <span class="font-display text-3xl text-gray-300">${tool.number}</span>
+            <span class="tag-chip px-2.5 py-1 border-2 border-[var(--ink)] uppercase" style="background:${tool.color}; color:${textColorOn(tool.color)};">${tool.category}</span>
+          </div>
 
-  /* ============================================================
-     CHART CONFIGURATION
-  ============================================================ */
+          <div class="w-12 h-12 flex items-center justify-center border-[3px] border-[var(--ink)] mb-4" style="background:${tool.color}22;">
+            <i data-lucide="${tool.icon}" class="w-6 h-6" style="color:${tool.color};" aria-hidden="true"></i>
+          </div>
 
-  Chart.register(ChartDataLabels);
+          <h3 class="font-display text-2xl tracking-wide leading-tight mb-2">${tool.name}</h3>
+          <p class="text-sm text-gray-600 flex-1">${tool.description}</p>
 
-  const backgroundColorPlugin = {
-    id: 'customCanvasBackgroundColor',
-    beforeDraw(chart, args, options){
-      const color = options && options.color;
-      if(!color) return; // transparent — skip fill
-      const { ctx } = chart;
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-over';
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, chart.width, chart.height);
-      ctx.restore();
-    }
-  };
-  Chart.register(backgroundColorPlugin);
+          <div class="flex flex-wrap gap-1.5 mt-4 mb-5">${tagsHtml}</div>
 
-  /**
-   * calculateYAxisRange
-   * Computes a proportional min/max for the Y axis based on the actual data,
-   * instead of relying on Chart.js's default auto-scale or hardcoded bounds.
-   * - Finds min/max of the dataset
-   * - Adds proportional padding above & below (based on the data range)
-   * - Falls back to a safe padding when the range is 0 (flat data) or tiny
-   * - Keeps a non-negative axis floor when all data is non-negative
-   * - Leaves negative data free to extend below zero
-   */
-  function calculateYAxisRange(values){
-    const nums = (values || []).map(Number).filter(v => !isNaN(v));
-    if(nums.length === 0) return { min: undefined, max: undefined };
-
-    const min = Math.min(...nums);
-    const max = Math.max(...nums);
-    const range = max - min;
-
-    if(range === 0){
-      const magnitude = Math.abs(min);
-      const pad = magnitude > 0 ? magnitude * 0.05 : 1;
-      let axisMin = min - pad;
-      let axisMax = max + pad;
-      if(min >= 0 && axisMin < 0) axisMin = 0;
-      return { min: axisMin, max: axisMax };
-    }
-
-    const paddingRatio = 0.18;
-    let padding = range * paddingRatio;
-    const minAbsolutePadding = range * 0.12;
-    padding = Math.max(padding, minAbsolutePadding);
-
-    let axisMin = min - padding;
-    let axisMax = max + padding;
-
-    if(min >= 0 && axisMin < 0){
-      axisMin = 0;
-    }
-
-    return { min: axisMin, max: axisMax };
-  }
-
-  // Draws a bold total label above each bar when the chart is a stacked
-  // bar chart — mirrors the "grand total on top" style of a service
-  // breakdown chart.
-  const stackedTotalPlugin = {
-    id: 'stackedTotalLabels',
-    afterDatasetsDraw(chart, args, options){
-      if(!options || !options.display) return;
-      if(chart.config.type !== 'bar') return;
-      const { ctx, data } = chart;
-      if(!data.datasets.length) return;
-      ctx.save();
-      ctx.font = options.font || "700 12px 'Montserrat', sans-serif";
-      ctx.fillStyle = options.color || '#1f2937';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      data.labels.forEach((_, i) => {
-        let total = 0;
-        let topY = Infinity;
-        let x = null;
-        data.datasets.forEach((ds, dsIndex) => {
-          const val = Number(ds.data[i]) || 0;
-          total += val;
-          const meta = chart.getDatasetMeta(dsIndex);
-          const el = meta && meta.data && meta.data[i];
-          if(el && !meta.hidden && el.y < topY){ topY = el.y; x = el.x; }
-        });
-        if(x !== null && isFinite(topY) && total !== 0){
-          const text = options.formatter ? options.formatter(total) : String(total);
-          ctx.fillText(text, x, topY - (options.offset || 6));
-        }
-      });
-      ctx.restore();
-    }
-  };
-  Chart.register(stackedTotalPlugin);
-
-  function buildChartConfig(){
-    const labels = state.data.map(d => d.label);
-    const isPie = state.chartType === 'doughnut' || state.chartType === 'pie';
-    const actualType = state.chartType === 'area' ? 'line' : state.chartType;
-    const categories = state.categories.length ? state.categories : ['Value'];
-    const isStacked = state.chartType === 'bar' && !!state.stacked;
-
-    let datasets;
-    if(isPie){
-      // Pie / doughnut can only visualize a single measure — let the user
-      // pick which category to display when there is more than one.
-      const catIdx = Math.min(Math.max(Number(state.pieCategoryIndex) || 0, 0), categories.length - 1);
-      const values = state.data.map(d => Number(d.values[catIdx]));
-      const baseColor = state.categoryColors[catIdx] || state.categoryColors[0] || '#525EA7';
-      datasets = [{
-        label: categories[catIdx],
-        data: values,
-        backgroundColor: generatePalette(values.length, baseColor),
-        borderColor: '#FFFFFF',
-        borderWidth: 1,
-        hoverOffset: 6
-      }];
-    } else {
-      datasets = categories.map((catName, idx) => {
-        const values = state.data.map(d => Number(d.values[idx]));
-        const color = state.categoryColors[idx] || CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length];
-        let backgroundColor;
-        if(state.chartType === 'bar'){
-          backgroundColor = color;
-        } else {
-          const shouldFill = state.chartType === 'area' || state.fillArea;
-          const fillAlpha = categories.length > 1 ? 0.14 : 0.16;
-          backgroundColor = shouldFill ? hexToRgba(color, fillAlpha) : hexToRgba(color, 0);
-        }
-        return {
-          label: catName,
-          data: values,
-          borderColor: color,
-          backgroundColor: backgroundColor,
-          borderWidth: Number(state.lineWidth),
-          pointBackgroundColor: color,
-          pointBorderColor: color,
-          pointStyle: state.showPoints ? state.pointStyle : false,
-          pointRadius: (actualType === 'line') ? (state.showPoints ? Number(state.pointSize) : 0) : undefined,
-          pointHoverRadius: (actualType === 'line') ? (state.showPoints ? Number(state.pointSize)+2 : 0) : undefined,
-          tension: (actualType === 'line' && state.smoothLine) ? 0.4 : 0,
-          fill: actualType === 'line' ? (state.chartType === 'area' ? true : state.fillArea) : undefined,
-          borderRadius: state.chartType === 'bar' ? 4 : 0,
-          maxBarThickness: state.chartType === 'bar' ? 56 : undefined
-        };
-      });
-    }
-
-    // Y-axis scaling is computed from every category's values combined, so
-    // the axis stays proportional no matter how many categories are shown.
-    const allValues = isPie
-      ? datasets[0].data
-      : state.data.flatMap(d => (d.values || []).map(Number));
-
-    return {
-      type: actualType,
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 350 },
-        layout: { padding: { top: state.subtitle ? 48 : (isStacked ? 42 : 38), right: 26, bottom: 12, left: 12 } },
-        plugins: {
-          title: {
-            display: !!state.title,
-            text: state.title,
-            font: { family: "'Bebas Neue', sans-serif", size: 20, weight: '400' },
-            color: '#1f2937',
-            padding: { bottom: state.subtitle ? 2 : 16 }
-          },
-          subtitle: {
-            display: !!state.subtitle,
-            text: state.subtitle,
-            font: { family: "'Montserrat', sans-serif", size: 12.5, weight: '500' },
-            color: '#4b5563',
-            padding: { bottom: 16 }
-          },
-          legend: {
-            display: state.showLegend,
-            position: 'bottom',
-            labels: { font: { family: "'Montserrat', sans-serif" }, color: '#334155', usePointStyle: true }
-          },
-          tooltip: {
-            callbacks: {
-              label(ctx){
-                const raw = isPie ? ctx.parsed : ctx.parsed.y;
-                const name = isPie ? ctx.label : (ctx.dataset.label || '');
-                return `${name}: ${formatValue(raw, state.dataFormat)}`;
-              }
-            }
-          },
-          datalabels: {
-            display(ctx){
-              if(!state.showDataLabels) return false;
-              if(isStacked){
-                const v = Number(ctx.dataset.data[ctx.dataIndex]);
-                return v !== 0; // hide labels on empty stack segments to avoid clutter
-              }
-              return true;
-            },
-            color: isStacked ? '#FFFFFF' : (isPie ? '#FFFFFF' : '#1f2937'),
-            font: { family: "'Montserrat', sans-serif", size: isStacked ? 11 : 10.5, weight: '700' },
-            anchor: isStacked ? 'center' : (isPie ? 'center' : 'end'),
-            align: isStacked ? 'center' : (isPie ? 'center' : 'top'),
-            offset: isStacked ? 0 : 10,
-            clamp: true,
-            clip: false,
-            formatter(value){
-              return formatValue(value, state.dataFormat);
-            }
-          },
-          customCanvasBackgroundColor: { color: state.colors.background || '#FFFFFF' },
-          stackedTotalLabels: {
-            display: isStacked && state.showDataLabels,
-            color: '#1f2937',
-            font: "700 12px 'Montserrat', sans-serif",
-            offset: 8,
-            formatter: v => formatValue(v, state.dataFormat)
-          }
-        },
-        scales: isPie ? {} : {
-          x: {
-            stacked: isStacked,
-            title: { display: !!state.xAxisLabel, text: state.xAxisLabel, font: { family: "'Montserrat', sans-serif", weight:'600' }, color: '#4b5563' },
-            grid: { display: state.showGrid, color: state.colors.grid },
-            ticks: { color: '#4b5563', font: { family: "'Montserrat', sans-serif" } }
-          },
-          y: (() => {
-            const yScale = {
-              stacked: isStacked,
-              title: { display: !!state.yAxisLabel, text: state.yAxisLabel, font: { family: "'Montserrat', sans-serif", weight:'600' }, color: '#4b5563' },
-              grid: { display: state.showGrid, color: state.colors.grid },
-              ticks: { color: '#4b5563', font: { family: "'Montserrat', sans-serif" }, callback: v => formatValue(v, state.dataFormat) }
-            };
-            if(actualType === 'bar'){
-              yScale.beginAtZero = true;
-              if(isStacked){
-                // Leave headroom above the tallest stack so the total label
-                // drawn on top never gets clipped by the chart edge.
-                const totals = state.data.map(d => (d.values || []).reduce((a,b) => a + (Number(b) || 0), 0));
-                const maxTotal = totals.length ? Math.max(...totals) : 0;
-                if(maxTotal > 0) yScale.max = maxTotal * 1.18;
-              }
-            } else if(actualType === 'line'){
-              const range = calculateYAxisRange(allValues);
-              yScale.min = range.min;
-              yScale.max = range.max;
-            }
-            return yScale;
-          })()
-        }
-      }
-    };
-  }
-
-  /* ============================================================
-     CHART RENDERING
-  ============================================================ */
-
-  function renderChart(){
-    const validation = validateData(state.data, state.categories);
-    const emptyState = byId('emptyState');
-
-    if(!validation.valid){
-      showError(validation.message);
-      if(chartInstance){ chartInstance.destroy(); chartInstance = null; }
-      emptyState.classList.remove('hidden');
-      byId('statsBar').innerHTML = '';
-      return false;
-    }
-    hideError();
-    emptyState.classList.add('hidden');
-
-    const cfg = buildChartConfig();
-    if(chartInstance) chartInstance.destroy();
-    const ctx = byId('previewCanvas').getContext('2d');
-    chartInstance = new Chart(ctx, cfg);
-
-    updateStatsBar();
-    saveToLocalStorage();
-    return true;
-  }
-
-  function updateStatsBar(){
-    const allValues = state.data.flatMap(d => (d.values || []).map(Number)).filter(v => !isNaN(v));
-    const el = byId('statsBar');
-    if(allValues.length === 0){ el.innerHTML = ''; return; }
-    const min = Math.min(...allValues), max = Math.max(...allValues);
-    const avg = allValues.reduce((a,b)=>a+b,0) / allValues.length;
-
-    const card = (icon, label, value) => `
-      <div class="pixel-border bg-white px-3.5 py-2.5 flex items-center gap-2.5">
-        <i data-lucide="${icon}" class="w-4 h-4 text-primary"></i>
-        <div>
-          <p class="text-[9px] uppercase font-bold text-ink/50 tracking-wide leading-none mb-1">${label}</p>
-          <p class="font-display text-lg leading-none">${value}</p>
+          <a href="${tool.file}"
+            class="btn-press inline-flex items-center justify-center gap-2 border-[3px] border-[var(--ink)] font-bold text-sm tracking-wide px-4 py-3 min-h-[44px] w-full"
+            style="background:${tool.color}; color:${textColorOn(tool.color)}; box-shadow:4px 4px 0 var(--ink);"
+            aria-label="Open ${tool.name}">
+            OPEN TOOL
+            <i data-lucide="arrow-right" class="w-4 h-4" aria-hidden="true"></i>
+          </a>
         </div>
-      </div>`;
-
-    el.innerHTML =
-      card('tags', 'Categories', state.categories.length) +
-      card('hash', 'Rows', state.data.length) +
-      card('arrow-down-circle', 'Min', formatValue(min, state.dataFormat)) +
-      card('arrow-up-circle', 'Max', formatValue(max, state.dataFormat)) +
-      card('gauge', 'Average', formatValue(avg, state.dataFormat));
-
-    refreshIcons();
-  }
-
-  /* ============================================================
-     UI RENDERING: CATEGORIES
-  ============================================================ */
-
-  function renderCategoryChips(){
-    const el = byId('categoryChips');
-    el.innerHTML = state.categories.map((name, i) => `
-      <div class="pixel-btn bg-white px-2 py-1.5 flex items-center gap-1.5">
-        <input type="color" class="cat-color-input" data-index="${i}" value="${state.categoryColors[i] || '#525EA7'}" title="Category color">
-        <input type="text" class="cat-name-input font-body text-xs font-semibold bg-transparent border-0 outline-none w-[74px]" data-index="${i}" value="${escapeHtml(name)}" placeholder="Category">
-        <button type="button" class="remove-category-btn text-red-600 ${state.categories.length <= 1 ? 'opacity-30 pointer-events-none' : ''}" data-index="${i}" title="Remove category" aria-label="Remove category ${escapeHtml(name)}">
-          <i data-lucide="x" class="w-3 h-3 pointer-events-none"></i>
-        </button>
       </div>
+    `;
+  }
+
+  function renderTools(list) {
+    toolsGrid.innerHTML = list.map(renderToolCard).join('');
+    noResults.classList.toggle('hidden', list.length > 0);
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderQuickAccess() {
+    quickAccessList.innerHTML = tools.map(tool => `
+      <a href="${tool.file}"
+        class="flex items-center gap-4 px-5 py-4 hover:bg-[var(--light-blue)]/20 transition-colors min-h-[44px]"
+        aria-label="Open ${tool.name}">
+        <span class="font-display text-xl w-8 text-gray-400">${tool.number}</span>
+        <span class="w-8 h-8 flex items-center justify-center border-2 border-[var(--ink)] shrink-0" style="background:${tool.color}22;">
+          <i data-lucide="${tool.icon}" class="w-4 h-4" style="color:${tool.color};" aria-hidden="true"></i>
+        </span>
+        <span class="font-bold text-sm tracking-wide flex-1">${tool.name}</span>
+        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400" aria-hidden="true"></i>
+      </a>
     `).join('');
-    refreshIcons();
+    if (window.lucide) lucide.createIcons();
   }
 
-  byId('categoryChips').addEventListener('input', (e) => {
-    const t = e.target;
-    const idx = Number(t.dataset.index);
-    if(isNaN(idx) || state.categories[idx] === undefined) return;
-    if(t.matches('.cat-name-input')){
-      state.categories[idx] = t.value;
-      renderTable();
-      updatePieCategoryVisibility();
-      renderChart();
-    } else if(t.matches('.cat-color-input')){
-      state.categoryColors[idx] = t.value;
-      renderChart();
-    }
-  });
-
-  byId('categoryChips').addEventListener('click', (e) => {
-    const btn = e.target.closest('.remove-category-btn');
-    if(btn && state.categories.length > 1){
-      const idx = Number(btn.dataset.index);
-      state.categories.splice(idx, 1);
-      state.categoryColors.splice(idx, 1);
-      state.data.forEach(row => { if(Array.isArray(row.values)) row.values.splice(idx, 1); });
-      if(state.pieCategoryIndex >= state.categories.length) state.pieCategoryIndex = 0;
-      renderCategoryChips();
-      renderTable();
-      updatePieCategoryVisibility();
-      renderChart();
-    }
-  });
-
-  byId('addCategoryBtn').addEventListener('click', () => {
-    const newIndex = state.categories.length;
-    state.categories.push(`Category ${newIndex + 1}`);
-    state.categoryColors.push(CATEGORY_PALETTE[newIndex % CATEGORY_PALETTE.length]);
-    state.data.forEach(row => {
-      if(!Array.isArray(row.values)) row.values = [];
-      row.values.push(0);
-    });
-    renderCategoryChips();
-    renderTable();
-    updatePieCategoryVisibility();
-    renderChart();
-  });
-
-  function updatePieCategoryVisibility(){
-    const isPie = state.chartType === 'doughnut' || state.chartType === 'pie';
-    const show = isPie && state.categories.length > 1;
-    byId('pieCategoryField').classList.toggle('hidden', !show);
-    if(show){
-      const select = byId('pieCategorySelect');
-      select.innerHTML = state.categories.map((name, i) => `<option value="${i}">${escapeHtml(name)}</option>`).join('');
-      select.value = String(Math.min(state.pieCategoryIndex, state.categories.length - 1));
-    }
+  // ========================================
+  // SEARCH
+  // ========================================
+  function filterTools(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return tools;
+    return tools.filter(t =>
+      t.name.toLowerCase().includes(q) ||
+      t.description.toLowerCase().includes(q) ||
+      t.category.toLowerCase().includes(q) ||
+      t.tags.some(tag => tag.includes(q))
+    );
   }
 
-  function updateStackedFieldVisibility(){
-    byId('stackedField').classList.toggle('hidden', state.chartType !== 'bar');
-  }
+  toolSearchInput.addEventListener('input', (e) => {
+    renderTools(filterTools(e.target.value));
+  });
 
-  /* ============================================================
-     UI RENDERING: DATA TABLE
-  ============================================================ */
-
-  function renderTable(){
-    const thead = byId('dataTableHead');
-    thead.innerHTML = `
-      <tr class="text-left text-[10px] uppercase tracking-wide text-ink/60 border-b-[3px] border-ink">
-        <th class="py-2 pr-2 w-8">No</th>
-        <th class="py-2 pr-2">Label</th>
-        ${state.categories.map(name => `<th class="py-2 pr-2">${escapeHtml(name)}</th>`).join('')}
-        <th class="py-2 w-8"></th>
-      </tr>`;
-
-    const tbody = byId('dataTableBody');
-    tbody.innerHTML = state.data.map((row, i) => `
-      <tr class="border-b border-ink/10">
-        <td class="py-1.5 pr-2 text-ink/50 text-xs font-display">${i+1}</td>
-        <td class="py-1.5 pr-2"><input type="text" class="row-label pixel-input w-full px-2.5 py-1.5 text-sm" data-index="${i}" data-field="label" value="${escapeHtml(row.label)}" placeholder="e.g. Januari"></td>
-        ${state.categories.map((_, catIdx) => `
-        <td class="py-1.5 pr-2"><input type="number" step="any" class="row-value pixel-input w-full px-2.5 py-1.5 text-sm" data-index="${i}" data-cat="${catIdx}" value="${escapeHtml((row.values && row.values[catIdx] !== undefined) ? row.values[catIdx] : 0)}"></td>
-        `).join('')}
-        <td class="py-1.5 text-center">
-          <button type="button" class="delete-row pixel-btn w-8 h-8 flex items-center justify-center text-red-600 bg-white" data-index="${i}" aria-label="Delete row ${i+1}" title="Delete row">
-            <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
-          </button>
-        </td>
-      </tr>
+  function renderOverlayResults(query) {
+    const matches = filterTools(query);
+    if (matches.length === 0) {
+      overlayResults.innerHTML = `
+        <div class="text-center py-8">
+          <p class="font-display text-lg tracking-wide">NO TOOLS FOUND</p>
+          <p class="text-gray-500 text-xs mt-1">Try another keyword.</p>
+        </div>`;
+      return;
+    }
+    overlayResults.innerHTML = matches.map(tool => `
+      <a href="${tool.file}" class="flex items-center gap-3 px-4 py-3 border-b border-gray-200 last:border-0 hover:bg-[var(--light-blue)]/20">
+        <span class="w-8 h-8 flex items-center justify-center border-2 border-[var(--ink)] shrink-0" style="background:${tool.color}22;">
+          <i data-lucide="${tool.icon}" class="w-4 h-4" style="color:${tool.color};" aria-hidden="true"></i>
+        </span>
+        <span class="flex-1">
+          <span class="block font-bold text-sm">${tool.name}</span>
+          <span class="block text-xs text-gray-500">${tool.category}</span>
+        </span>
+        <i data-lucide="external-link" class="w-4 h-4 text-gray-400" aria-hidden="true"></i>
+      </a>
     `).join('');
-    refreshIcons();
+    if (window.lucide) lucide.createIcons();
   }
 
-  byId('dataTableBody').addEventListener('input', (e) => {
-    const t = e.target;
-    const idx = Number(t.dataset.index);
-    if(!state.data[idx]) return;
-    if(t.matches('.row-label')){
-      state.data[idx].label = t.value;
-      renderChart();
-    } else if(t.matches('.row-value')){
-      const catIdx = Number(t.dataset.cat);
-      if(!Array.isArray(state.data[idx].values)) state.data[idx].values = [];
-      state.data[idx].values[catIdx] = t.value;
-      renderChart();
+  overlaySearchInput.addEventListener('input', (e) => renderOverlayResults(e.target.value));
+
+  function openSearchOverlay() {
+    searchOverlay.classList.remove('hidden');
+    searchOverlay.classList.add('flex');
+    renderOverlayResults(overlaySearchInput.value);
+    overlaySearchInput.focus();
+    overlaySearchInput.select();
+  }
+
+  function closeSearchOverlay() {
+    searchOverlay.classList.add('hidden');
+    searchOverlay.classList.remove('flex');
+  }
+
+  openSearchBtn.addEventListener('click', openSearchOverlay);
+  closeOverlayBtn.addEventListener('click', closeSearchOverlay);
+  searchOverlay.addEventListener('click', (e) => {
+    if (e.target === searchOverlay) closeSearchOverlay();
+  });
+
+  // ========================================
+  // RANDOM TOOL
+  // ========================================
+  randomToolBtn.addEventListener('click', () => {
+    const files = tools.map(t => t.file);
+    const pick = files[Math.floor(Math.random() * files.length)];
+    window.location.href = pick;
+  });
+
+  // ========================================
+  // KEYBOARD SHORTCUTS
+  // ========================================
+  document.addEventListener('keydown', (e) => {
+    const isK = e.key === 'k' || e.key === 'K';
+    if ((e.metaKey || e.ctrlKey) && isK) {
+      e.preventDefault();
+      openSearchOverlay();
+    }
+    if (e.key === 'Escape' && !searchOverlay.classList.contains('hidden')) {
+      closeSearchOverlay();
     }
   });
 
-  byId('dataTableBody').addEventListener('click', (e) => {
-    const btn = e.target.closest('.delete-row');
-    if(btn){
-      const idx = Number(btn.dataset.index);
-      state.data.splice(idx, 1);
-      renderTable();
-      renderChart();
-    }
-  });
+  // ========================================
+  // INITIALIZATION
+  // ========================================
+  function init() {
+    renderTools(tools);
+    renderQuickAccess();
 
-  /* ============================================================
-     UI RENDERING: STATE SYNC
-  ============================================================ */
+    const count = tools.length;
+    const countStr = String(count).padStart(2, '0');
+    document.getElementById('hero-tool-count-label').textContent = `${countStr} TOOLS AVAILABLE`;
+    document.getElementById('terminal-tool-count').textContent = count;
+    document.getElementById('footer-tool-count').textContent = `${countStr} TOOLS AVAILABLE`;
 
-  function syncChartTypeButtons(){
-    document.querySelectorAll('.chart-type-btn').forEach(btn => {
-      const active = btn.dataset.type === state.chartType;
-      btn.classList.toggle('active', active);
-      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
+    if (window.lucide) lucide.createIcons();
   }
 
-  function syncUIFromState(){
-    syncChartTypeButtons();
-    renderCategoryChips();
-    updatePieCategoryVisibility();
-    updateStackedFieldVisibility();
-
-    byId('titleInput').value = state.title;
-    byId('subtitleInput').value = state.subtitle;
-    byId('xAxisLabelInput').value = state.xAxisLabel;
-    byId('yAxisLabelInput').value = state.yAxisLabel;
-    byId('dataFormatSelect').value = state.dataFormat;
-    byId('themeSelect').value = state.theme;
-
-    byId('showLegend').checked = state.showLegend;
-    byId('showDataLabels').checked = state.showDataLabels;
-    byId('showGrid').checked = state.showGrid;
-    byId('showPoints').checked = state.showPoints;
-    byId('smoothLine').checked = state.smoothLine;
-    byId('fillArea').checked = state.fillArea;
-    byId('stackedBars').checked = state.stacked;
-
-    byId('lineWidth').value = state.lineWidth;
-    byId('lineWidthVal').textContent = state.lineWidth;
-    byId('pointSize').value = state.pointSize;
-    byId('pointSizeVal').textContent = state.pointSize;
-    byId('pointStyle').value = state.pointStyle;
-
-    byId('colorBackground').value = state.colors.background;
-    byId('colorGrid').value = state.colors.grid;
-
-    byId('exportBgSelect').value = state.exportBg;
-    byId('exportBgColor').value = state.exportBgColor;
-    byId('resolutionSelect').value = state.resolution;
-    byId('customWidth').value = state.customWidth;
-    byId('customHeight').value = state.customHeight;
-
-    toggleConditionalFields();
-  }
-
-  function toggleConditionalFields(){
-    byId('exportBgColorField').classList.toggle('hidden', state.exportBg !== 'custom');
-    byId('customResolutionFields').classList.toggle('hidden', state.resolution !== 'custom');
-  }
-
-  /* ============================================================
-     ACTIONS (theme / template / preset / reset)
-  ============================================================ */
-
-  function applyTheme(name){
-    state.theme = name;
-    const t = THEMES[name];
-    if(t){
-      state.colors.grid = t.grid;
-      state.categoryColors = state.categories.map((_, i) => t.palette[i % t.palette.length]);
-    }
-  }
-
-  function applyTemplate(name){
-    const t = TEMPLATES[name];
-    if(!t) return;
-    state.chartType = t.chartType;
-    state.dataFormat = t.dataFormat;
-    state.showLegend = t.showLegend;
-    state.showGrid = t.showGrid;
-    state.showDataLabels = t.showDataLabels;
-    state.yAxisLabel = t.yAxisLabel;
-    applyTheme(t.theme);
-    syncUIFromState();
-    renderChart();
-  }
-
-  function applyCorporatePreset(){
-    const base = buildDefaultState();
-    state.chartType = base.chartType;
-    state.pointStyle = base.pointStyle;
-    state.showPoints = base.showPoints;
-    state.showLegend = base.showLegend;
-    state.showDataLabels = base.showDataLabels;
-    state.showGrid = base.showGrid;
-    state.dataFormat = base.dataFormat;
-    state.smoothLine = base.smoothLine;
-    state.lineWidth = base.lineWidth;
-    state.exportBg = base.exportBg;
-    state.exportBgColor = base.exportBgColor;
-    applyTheme(base.theme); // regenerates categoryColors for the current category count
-    syncUIFromState();
-    renderChart();
-    showToast('Corporate Performance preset applied');
-  }
-
-  function resetApp(){
-    state = buildDefaultState();
-    try{ localStorage.removeItem(LS_KEY); }catch(e){}
-    syncUIFromState();
-    renderTable();
-    renderChart();
-    showToast('Chart reset to default');
-  }
-
-  /* ============================================================
-     LOCALSTORAGE
-  ============================================================ */
-
-  function saveToLocalStorage(){
-    try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
-    catch(e){ /* storage unavailable — silently ignore */ }
-  }
-
-  function loadFromLocalStorage(){
-    try{
-      const raw = localStorage.getItem(LS_KEY);
-      if(!raw) return null;
-      let parsed = JSON.parse(raw);
-      if(!parsed || !Array.isArray(parsed.data) || parsed.data.length === 0) return null;
-
-      // Migrate the old single-value schema (data: [{label, value}], with
-      // a single colors.line/point) into the multi-category schema.
-      if(parsed.data[0] && parsed.data[0].values === undefined && parsed.data[0].value !== undefined){
-        parsed = Object.assign({}, parsed, {
-          data: parsed.data.map(r => ({ label: r.label, values: [Number(r.value)] })),
-          categories: ['Value'],
-          categoryColors: [ (parsed.colors && parsed.colors.line) || '#525EA7' ],
-          colors: {
-            background: (parsed.colors && parsed.colors.background) || '#FFFFFF',
-            grid: (parsed.colors && parsed.colors.grid) || '#D9E6EC'
-          },
-          pieCategoryIndex: 0
-        });
-      }
-
-      // Merge with defaults so any missing/incomplete fields from an older
-      // saved state don't break rendering — this only fills in gaps, it
-      // never overrides valid data.
-      const defaults = buildDefaultState();
-      const merged = Object.assign({}, defaults, parsed);
-      merged.colors = Object.assign({}, defaults.colors, parsed.colors || {});
-      merged.categories = (Array.isArray(parsed.categories) && parsed.categories.length) ? parsed.categories.slice() : clone(defaults.categories);
-
-      merged.categoryColors = Array.isArray(parsed.categoryColors) ? parsed.categoryColors.slice() : [];
-      while(merged.categoryColors.length < merged.categories.length){
-        merged.categoryColors.push(CATEGORY_PALETTE[merged.categoryColors.length % CATEGORY_PALETTE.length]);
-      }
-      merged.categoryColors = merged.categoryColors.slice(0, merged.categories.length);
-
-      // Make sure every row's values array matches the category count.
-      merged.data = merged.data.map(row => {
-        let values = Array.isArray(row.values) ? row.values.slice() : [];
-        while(values.length < merged.categories.length) values.push(0);
-        values = values.slice(0, merged.categories.length);
-        return { label: row.label, values };
-      });
-
-      if(typeof merged.pieCategoryIndex !== 'number' || merged.pieCategoryIndex >= merged.categories.length || merged.pieCategoryIndex < 0){
-        merged.pieCategoryIndex = 0;
-      }
-
-      return merged;
-    }catch(e){ return null; }
-  }
-
-  /* ============================================================
-     EXPORT
-  ============================================================ */
-
-  function exportImage(format){
-    if(!validateData(state.data, state.categories).valid){
-      showError('Please fix the data errors before exporting.');
-      return;
-    }
-    const { w, h } = getResolution();
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = w;
-    offCanvas.height = h;
-
-    const cfg = buildChartConfig();
-    cfg.options.animation = false;
-    cfg.options.responsive = false;
-    cfg.options.maintainAspectRatio = false;
-    const bg = format === 'jpeg' ? (getExportBackgroundColor() || '#FFFFFF') : getExportBackgroundColor();
-    cfg.options.plugins.customCanvasBackgroundColor = { color: bg };
-
-    const tempChart = new Chart(offCanvas.getContext('2d'), cfg);
-    setTimeout(() => {
-      const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-      const url = offCanvas.toDataURL(mime, 0.95);
-      downloadUrl(url, `chart.${format === 'jpeg' ? 'jpg' : 'png'}`);
-      tempChart.destroy();
-      showToast(`${format.toUpperCase()} downloaded`);
-    }, 60);
-  }
-
-  function exportSVG(){
-    if(!validateData(state.data, state.categories).valid){
-      showError('Please fix the data errors before exporting.');
-      return;
-    }
-    const { w, h } = getResolution();
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = w;
-    offCanvas.height = h;
-
-    const cfg = buildChartConfig();
-    cfg.options.animation = false;
-    cfg.options.responsive = false;
-    cfg.options.maintainAspectRatio = false;
-    cfg.options.plugins.customCanvasBackgroundColor = { color: getExportBackgroundColor() || '#FFFFFF' };
-
-    const tempChart = new Chart(offCanvas.getContext('2d'), cfg);
-    setTimeout(() => {
-      const pngUrl = offCanvas.toDataURL('image/png');
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><image href="${pngUrl}" x="0" y="0" width="${w}" height="${h}"/></svg>`;
-      const blob = new Blob([svg], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
-      downloadUrl(url, 'chart.svg');
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      tempChart.destroy();
-      showToast('SVG downloaded');
-    }, 60);
-  }
-
-  function copyImage(){
-    if(!validateData(state.data, state.categories).valid){
-      showError('Please fix the data errors before copying.');
-      return;
-    }
-    if(!navigator.clipboard || typeof ClipboardItem === 'undefined'){
-      showError('Copy Image is not supported in this browser.');
-      return;
-    }
-    const canvas = byId('previewCanvas');
-    canvas.toBlob(async (blob) => {
-      if(!blob){ showError('Could not generate image to copy.'); return; }
-      try{
-        await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
-        showToast('Chart image copied to clipboard');
-      }catch(err){
-        showError('Failed to copy image: ' + err.message);
-      }
-    }, 'image/png');
-  }
-
-  /* ============================================================
-     EXCEL IMPORT / TEMPLATE
-  ============================================================ */
-
-  function downloadExcelTemplate(){
-    if(typeof XLSX === 'undefined'){
-      showError('Excel library failed to load. Check your internet connection.');
-      return;
-    }
-    // Reflects the CURRENT categories/data, so it doubles as an editable
-    // export: fill it in (or add more category columns) and re-import.
-    const header = ['Label', ...state.categories];
-    const bodyRows = state.data.length
-      ? state.data.map(row => [row.label, ...state.categories.map((_, i) => (row.values && row.values[i] !== undefined) ? row.values[i] : 0)])
-      : [['Januari', ...state.categories.map(() => 0)]];
-    const rows = [header, ...bodyRows];
-
-    const sheet = XLSX.utils.aoa_to_sheet(rows);
-    sheet['!cols'] = [{ wch: 20 }, ...state.categories.map(() => ({ wch: 14 }))];
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, sheet, 'Data');
-    XLSX.writeFile(workbook, 'chart-data-template.xlsx');
-    showToast('Template downloaded');
-  }
-
-  function importExcelFile(file){
-    if(!file) return;
-    if(typeof XLSX === 'undefined'){
-      showError('Excel library failed to load. Check your internet connection.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try{
-        const bytes = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(bytes, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        if(!firstSheetName){
-          showError('The file does not contain any sheet.');
-          return;
-        }
-        const sheet = workbook.Sheets[firstSheetName];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
-
-        if(rows.length < 2){
-          showError('The file needs a header row plus at least one data row.');
-          return;
-        }
-
-        // Row 1 = header: column A is "Label", every column after that is
-        // a category — its header text becomes the category name.
-        const header = rows[0];
-        const categoryNames = header.slice(1)
-          .map(h => (h === undefined || h === null || String(h).trim() === '') ? null : String(h).trim())
-          .filter(Boolean);
-
-        if(categoryNames.length === 0){
-          showError('The header row must include at least one category column after Label.');
-          return;
-        }
-
-        const parsedData = rows.slice(1)
-          .map(row => {
-            const label = row && row[0] !== undefined ? String(row[0]).trim() : '';
-            const values = categoryNames.map((_, i) => row ? row[i + 1] : undefined);
-            return { label, values };
-          })
-          .filter(row => row.label !== '' && row.values.every(v => v !== undefined && v !== '' && !isNaN(Number(v))))
-          .map(row => ({ label: row.label, values: row.values.map(Number) }));
-
-        if(parsedData.length === 0){
-          showError('No valid data found. Every row needs a Label plus a numeric value for each category column.');
-          return;
-        }
-
-        state.categories = categoryNames;
-        state.categoryColors = categoryNames.map((_, i) => CATEGORY_PALETTE[i % CATEGORY_PALETTE.length]);
-        state.data = parsedData;
-        if(state.pieCategoryIndex >= categoryNames.length) state.pieCategoryIndex = 0;
-
-        syncUIFromState();
-        renderTable();
-        renderChart();
-        showToast(`Imported ${parsedData.length} row${parsedData.length > 1 ? 's' : ''} × ${categoryNames.length} categor${categoryNames.length > 1 ? 'ies' : 'y'}`);
-      }catch(err){
-        showError('Failed to read the file: ' + err.message);
-      }
-    };
-    reader.onerror = () => showError('Failed to read the selected file.');
-    reader.readAsArrayBuffer(file);
-  }
-
-
-  function openFullscreen(){
-    if(!validateData(state.data, state.categories).valid){
-      showError('Please fix the data errors first.');
-      return;
-    }
-    byId('fullscreenModal').classList.remove('hidden');
-    const cfg = buildChartConfig();
-    cfg.options.animation = false;
-    if(fsChartInstance) fsChartInstance.destroy();
-    fsChartInstance = new Chart(byId('fsCanvas').getContext('2d'), cfg);
-  }
-
-  function closeFullscreen(){
-    byId('fullscreenModal').classList.add('hidden');
-    if(fsChartInstance){ fsChartInstance.destroy(); fsChartInstance = null; }
-  }
-
-  /* ============================================================
-     EVENT HANDLERS
-  ============================================================ */
-
-  function bindEvents(){
-    document.querySelectorAll('.chart-type-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state.chartType = btn.dataset.type;
-        syncChartTypeButtons();
-        updatePieCategoryVisibility();
-        updateStackedFieldVisibility();
-        renderChart();
-      });
-    });
-
-    byId('pieCategorySelect').addEventListener('change', e => {
-      state.pieCategoryIndex = Number(e.target.value);
-      renderChart();
-    });
-
-    byId('stackedBars').addEventListener('change', e => {
-      state.stacked = e.target.checked;
-      renderChart();
-    });
-
-    byId('templateSelect').addEventListener('change', e => { if(e.target.value) applyTemplate(e.target.value); });
-    byId('titleInput').addEventListener('input', e => { state.title = e.target.value; renderChart(); });
-    byId('subtitleInput').addEventListener('input', e => { state.subtitle = e.target.value; renderChart(); });
-    byId('xAxisLabelInput').addEventListener('input', e => { state.xAxisLabel = e.target.value; renderChart(); });
-    byId('yAxisLabelInput').addEventListener('input', e => { state.yAxisLabel = e.target.value; renderChart(); });
-    byId('dataFormatSelect').addEventListener('change', e => { state.dataFormat = e.target.value; renderChart(); });
-
-    byId('addRowBtn').addEventListener('click', () => {
-      state.data.push({ label:'', values: state.categories.map(() => 0) });
-      renderTable();
-    });
-    byId('clearAllBtn').addEventListener('click', () => {
-      state.data = [];
-      renderTable();
-      renderChart();
-    });
-    byId('loadExampleBtn').addEventListener('click', () => {
-      state.categories = clone(EXAMPLE_CATEGORIES);
-      state.categoryColors = clone(EXAMPLE_CATEGORY_COLORS);
-      state.data = clone(EXAMPLE_DATA);
-      state.pieCategoryIndex = 0;
-      state.chartType = 'bar';
-      state.stacked = true;
-      state.title = 'Jumlah Layanan per Bulan';
-      state.subtitle = '';
-      state.xAxisLabel = '';
-      state.yAxisLabel = 'Jumlah Layanan';
-      state.dataFormat = 'number';
-      state.showLegend = true;
-      state.showDataLabels = true;
-      state.showGrid = true;
-      syncUIFromState();
-      renderTable();
-      renderChart();
-      showToast('Stacked bar example loaded');
-    });
-    byId('loadDefaultBtn').addEventListener('click', () => {
-      state = buildDefaultState();
-      syncUIFromState();
-      renderTable();
-      renderChart();
-      showToast('Default data loaded');
-    });
-
-    byId('corporatePresetBtn').addEventListener('click', applyCorporatePreset);
-    byId('themeSelect').addEventListener('change', e => { applyTheme(e.target.value); syncUIFromState(); renderChart(); });
-
-    byId('downloadTemplateBtn').addEventListener('click', downloadExcelTemplate);
-    byId('importExcelBtn').addEventListener('click', () => byId('excelFileInput').click());
-    byId('excelFileInput').addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      importExcelFile(file);
-      e.target.value = ''; // allow re-selecting the same file later
-    });
-
-    byId('showLegend').addEventListener('change', e => { state.showLegend = e.target.checked; renderChart(); });
-    byId('showDataLabels').addEventListener('change', e => { state.showDataLabels = e.target.checked; renderChart(); });
-    byId('showGrid').addEventListener('change', e => { state.showGrid = e.target.checked; renderChart(); });
-    byId('showPoints').addEventListener('change', e => { state.showPoints = e.target.checked; renderChart(); });
-    byId('smoothLine').addEventListener('change', e => { state.smoothLine = e.target.checked; renderChart(); });
-    byId('fillArea').addEventListener('change', e => { state.fillArea = e.target.checked; renderChart(); });
-
-    byId('lineWidth').addEventListener('input', e => { state.lineWidth = e.target.value; byId('lineWidthVal').textContent = e.target.value; renderChart(); });
-    byId('pointSize').addEventListener('input', e => { state.pointSize = e.target.value; byId('pointSizeVal').textContent = e.target.value; renderChart(); });
-    byId('pointStyle').addEventListener('change', e => { state.pointStyle = e.target.value; renderChart(); });
-
-    byId('colorBackground').addEventListener('input', e => { state.colors.background = e.target.value; renderChart(); });
-    byId('colorGrid').addEventListener('input', e => { state.colors.grid = e.target.value; renderChart(); });
-
-    byId('exportBgSelect').addEventListener('change', e => { state.exportBg = e.target.value; toggleConditionalFields(); renderChart(); });
-    byId('exportBgColor').addEventListener('input', e => { state.exportBgColor = e.target.value; renderChart(); });
-    byId('resolutionSelect').addEventListener('change', e => { state.resolution = e.target.value; toggleConditionalFields(); });
-    byId('customWidth').addEventListener('input', e => { state.customWidth = e.target.value; });
-    byId('customHeight').addEventListener('input', e => { state.customHeight = e.target.value; });
-
-    byId('generateBtn').addEventListener('click', () => {
-      const ok = renderChart();
-      if(ok) showToast('Chart generated');
-    });
-    byId('resetBtn').addEventListener('click', resetApp);
-    byId('headerNewChartBtn').addEventListener('click', resetApp);
-    byId('headerExportBtn').addEventListener('click', () => exportImage('png'));
-
-    byId('fullscreenBtn').addEventListener('click', openFullscreen);
-    byId('fsCloseBtn').addEventListener('click', closeFullscreen);
-    byId('fullscreenModal').addEventListener('click', e => { if(e.target.id === 'fullscreenModal') closeFullscreen(); });
-    document.addEventListener('keydown', e => { if(e.key === 'Escape') closeFullscreen(); });
-
-    byId('downloadPngBtn').addEventListener('click', () => exportImage('png'));
-    byId('downloadJpgBtn').addEventListener('click', () => exportImage('jpeg'));
-    byId('downloadSvgBtn').addEventListener('click', exportSVG);
-    byId('copyImageBtn').addEventListener('click', copyImage);
-  }
-
-  document.addEventListener('DOMContentLoaded', init);
-})();
+  init();
 </script>
 
 </body>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chart Generator | Snatchy</title>
+<title>Chart Generator — Retro Pixel</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -152,21 +152,26 @@
           <option value="simple">Simple / Minimal</option>
         </select>
       </div>
+      <div class="mt-3.5 hidden" id="pieCategoryField">
+        <label for="pieCategorySelect" class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5">Category to Display</label>
+        <select id="pieCategorySelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm"></select>
+        <p class="font-body text-[10.5px] text-ink/45 mt-1.5 leading-snug">Pie / doughnut charts can only show one category at a time.</p>
+      </div>
     </div>
 
     <!-- 02 DATA -->
     <div class="pixel-border bg-white p-5">
       <p class="section-label mb-3">02 / Data</p>
+
+      <p class="font-body text-xs font-bold uppercase text-ink/60 mb-2">Categories</p>
+      <div id="categoryChips" class="flex flex-wrap gap-2 mb-3"></div>
+      <button id="addCategoryBtn" type="button" class="pixel-btn bg-soft/40 px-3 py-2 font-body text-[11px] font-bold uppercase flex items-center gap-1.5 mb-4">
+        <i data-lucide="tags" class="w-3.5 h-3.5"></i> Add Category
+      </button>
+
       <div class="overflow-x-auto">
         <table class="w-full text-sm font-body">
-          <thead>
-            <tr class="text-left text-[10px] uppercase tracking-wide text-ink/60 border-b-[3px] border-ink">
-              <th class="py-2 pr-2 w-8">No</th>
-              <th class="py-2 pr-2">Label</th>
-              <th class="py-2 pr-2">Value</th>
-              <th class="py-2 w-8"></th>
-            </tr>
-          </thead>
+          <thead id="dataTableHead"></thead>
           <tbody id="dataTableBody"></tbody>
         </table>
       </div>
@@ -182,7 +187,7 @@
           <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Import from Excel
         </p>
         <div class="grid grid-cols-2 gap-2">
-          <button id="downloadTemplateBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5" title="Download an Excel template with the required Label / Value columns">
+          <button id="downloadTemplateBtn" type="button" class="pixel-btn bg-white px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5" title="Download the current data as an editable Excel template">
             <i data-lucide="file-down" class="w-3.5 h-3.5"></i> Template
           </button>
           <button id="importExcelBtn" type="button" class="pixel-btn bg-soft/50 px-3 py-2.5 font-body text-xs font-bold uppercase flex items-center justify-center gap-1.5" title="Import data from an .xlsx, .xls or .csv file">
@@ -190,7 +195,7 @@
           </button>
           <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" class="hidden">
         </div>
-        <p class="font-body text-[10.5px] text-ink/45 mt-2 leading-snug">File must use the template's column order: <strong>Label</strong> in column A, <strong>Value</strong> in column B, starting from row 2.</p>
+        <p class="font-body text-[10.5px] text-ink/45 mt-2 leading-snug">Column A = <strong>Label</strong>. Every column after that is a category — its header becomes the category name. Add as many category columns as you need.</p>
       </div>
     </div>
 
@@ -258,6 +263,11 @@
         <label class="flex items-center gap-2 py-1.5"><input type="checkbox" id="fillArea"> Fill Area</label>
       </div>
 
+      <div class="mb-3.5 hidden" id="stackedField">
+        <label class="flex items-center gap-2 py-1.5 font-body text-xs font-semibold"><input type="checkbox" id="stackedBars"> Stacked Bars</label>
+        <p class="font-body text-[10.5px] text-ink/45 leading-snug">Stack all categories into one bar per label — with a total shown on top — instead of grouping them side by side.</p>
+      </div>
+
       <div class="grid grid-cols-2 gap-3 mb-3.5">
         <div>
           <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5">Line Width <span id="lineWidthVal" class="text-primary"></span></label>
@@ -280,13 +290,13 @@
         </select>
       </div>
 
-      <p class="font-body text-xs font-bold uppercase text-ink/60 mb-2">Custom Colors</p>
+      <p class="font-body text-xs font-bold uppercase text-ink/60 mb-2">Chart Colors</p>
       <div class="grid grid-cols-2 gap-3">
-        <div class="flex items-center gap-2"><input type="color" id="colorLine"><span class="font-body text-xs">Line</span></div>
-        <div class="flex items-center gap-2"><input type="color" id="colorPoint"><span class="font-body text-xs">Point</span></div>
         <div class="flex items-center gap-2"><input type="color" id="colorBackground"><span class="font-body text-xs">Chart Area</span></div>
         <div class="flex items-center gap-2"><input type="color" id="colorGrid"><span class="font-body text-xs">Grid</span></div>
       </div>
+      <p class="font-body text-[10.5px] text-ink/45 mt-2 leading-snug">Line / bar / point colors per category are managed in the <strong>02 / Data</strong> panel above.</p>
+
     </div>
 
     <!-- 05 EXPORT SETUP -->
@@ -308,8 +318,9 @@
         <label class="block font-body text-xs font-bold uppercase text-ink/60 mb-1.5" for="resolutionSelect">Image Size</label>
         <select id="resolutionSelect" class="pixel-input w-full px-3 py-2.5 font-body text-sm">
           <option value="1280x720">1280 × 720</option>
-          <option value="1920x1080">1920 × 1080</option>
-          <option value="2560x1440">2560 × 1440</option>
+          <option value="1920x1080">1920 × 1080 (Full HD)</option>
+          <option value="2560x1440">2560 × 1440 (2K)</option>
+          <option value="3840x2160">3840 × 2160 (4K)</option>
           <option value="custom">Custom</option>
         </select>
       </div>
@@ -394,14 +405,16 @@
 
   const LS_KEY = 'chartGeneratorState_v1';
 
+  const CATEGORY_PALETTE = ['#525EA7', '#FFC349', '#5FACD3', '#97DDE9', '#3FA34D', '#E0736B', '#7C6FC4', '#F2A65A'];
+
   const THEMES = {
-    corporate:  { line:'#525EA7', point:'#525EA7', grid:'#D9E6EC' },
-    green:      { line:'#3FA34D', point:'#3FA34D', grid:'#D9E6EC' },
-    blue:       { line:'#5FACD3', point:'#5FACD3', grid:'#D9E6EC' },
-    purple:     { line:'#7C6FC4', point:'#7C6FC4', grid:'#D9E6EC' },
-    orange:     { line:'#F2A65A', point:'#F2A65A', grid:'#D9E6EC' },
-    red:        { line:'#E0736B', point:'#E0736B', grid:'#D9E6EC' },
-    monochrome: { line:'#4B5563', point:'#4B5563', grid:'#D9E6EC' }
+    corporate:  { palette:['#525EA7','#3FA34D','#F2A65A','#7C6FC4'], grid:'#D9E6EC' },
+    green:      { palette:['#3FA34D','#7BC96F','#5FACD3','#F2A65A'], grid:'#D9E6EC' },
+    blue:       { palette:['#5FACD3','#3A78C2','#97DDE9','#525EA7'], grid:'#D9E6EC' },
+    purple:     { palette:['#7C6FC4','#525EA7','#97DDE9','#E0736B'], grid:'#D9E6EC' },
+    orange:     { palette:['#F2A65A','#E8892D','#FFC349','#E0736B'], grid:'#D9E6EC' },
+    red:        { palette:['#E0736B','#D9534F','#F2A65A','#7C6FC4'], grid:'#D9E6EC' },
+    monochrome: { palette:['#4B5563','#94A3B8','#1f2937','#CBD5E1'], grid:'#D9E6EC' }
   };
 
   const TEMPLATES = {
@@ -411,20 +424,39 @@
     simple:      { chartType:'line', dataFormat:'number',     showLegend:false, showGrid:false, showDataLabels:false, yAxisLabel:'',                theme:'monochrome' }
   };
 
+  // Default dataset — a single category, kept identical to the app's original behaviour.
   const DEFAULT_DATA = [
+    { label:'Januari',   values:[99.98] },
+    { label:'Februari',  values:[99.97] },
+    { label:'Maret',     values:[99.97] },
+    { label:'April',     values:[100.00] },
+    { label:'Mei',       values:[100.00] },
+    { label:'Juni',      values:[99.99] },
+    { label:'Juli',      values:[99.96] },
+    { label:'Agustus',   values:[99.99] },
+    { label:'September', values:[99.99] },
+    { label:'Oktober',   values:[99.97] },
+    { label:'November',  values:[99.98] },
+    { label:'Desember',  values:[99.98] }
   ];
 
+  // Multi-category example — a stacked "service breakdown" chart with a
+  // grand total on top of each bar (Internet + IPVPN + Metro + Starlink).
+  const EXAMPLE_CATEGORIES = ['Internet', 'IPVPN', 'Metro', 'Starlink'];
+  const EXAMPLE_CATEGORY_COLORS = ['#1F3B73', '#5FACD3', '#3FA34D', '#F2A65A'];
   const EXAMPLE_DATA = [
-    { label:'Q1', value:98.50 },
-    { label:'Q2', value:99.10 },
-    { label:'Q3', value:99.80 },
-    { label:'Q4', value:99.95 }
+    { label:'Januari',  values:[98, 4, 3, 2] },
+    { label:'Februari', values:[98, 5, 2, 2] },
+    { label:'Maret',    values:[150, 5, 4, 18] },
+    { label:'April',    values:[150, 5, 4, 18] },
+    { label:'Mei',      values:[150, 5, 4, 18] },
+    { label:'Juni',     values:[150, 5, 4, 18] }
   ];
 
   function buildDefaultState(){
     return {
       chartType: 'line',
-      title: '',
+      title: 'Rata-rata Performansi Lintasarta per Bulan (Tahun 2025)',
       subtitle: '',
       xAxisLabel: '',
       yAxisLabel: '',
@@ -439,7 +471,11 @@
       pointStyle: 'rect',
       dataFormat: 'percentage',
       theme: 'corporate',
-      colors: { line:'#525EA7', point:'#525EA7', background:'#FFFFFF', grid:'#D9E6EC' },
+      stacked: false,
+      colors: { background:'#FFFFFF', grid:'#D9E6EC' },
+      categories: ['Performance'],
+      categoryColors: ['#525EA7'],
+      pieCategoryIndex: 0,
       exportBg: 'white',
       exportBgColor: '#FFFFFF',
       resolution: '1920x1080',
@@ -592,7 +628,10 @@
      DATA MANAGEMENT / VALIDATION
   ============================================================ */
 
-  function validateData(data){
+  function validateData(data, categories){
+    if(!categories || categories.length === 0){
+      return { valid:false, message: 'Please add at least one category.' };
+    }
     if(!data || data.length === 0){
       return { valid:false, message: 'Please add at least one data row.' };
     }
@@ -601,8 +640,11 @@
       if(!row.label || !String(row.label).trim()){
         return { valid:false, message: `Row ${i+1}: Label must not be empty.` };
       }
-      if(row.value === '' || row.value === null || row.value === undefined || isNaN(Number(row.value))){
-        return { valid:false, message: `Row ${i+1}: Value must be a valid number.` };
+      for(let j=0; j<categories.length; j++){
+        const v = row.values ? row.values[j] : undefined;
+        if(v === '' || v === null || v === undefined || isNaN(Number(v))){
+          return { valid:false, message: `Row ${i+1} (${categories[j]}): Value must be a valid number.` };
+        }
       }
     }
     return { valid:true };
@@ -671,48 +713,109 @@
     return { min: axisMin, max: axisMax };
   }
 
+  // Draws a bold total label above each bar when the chart is a stacked
+  // bar chart — mirrors the "grand total on top" style of a service
+  // breakdown chart.
+  const stackedTotalPlugin = {
+    id: 'stackedTotalLabels',
+    afterDatasetsDraw(chart, args, options){
+      if(!options || !options.display) return;
+      if(chart.config.type !== 'bar') return;
+      const { ctx, data } = chart;
+      if(!data.datasets.length) return;
+      ctx.save();
+      ctx.font = options.font || "700 12px 'Montserrat', sans-serif";
+      ctx.fillStyle = options.color || '#1f2937';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      data.labels.forEach((_, i) => {
+        let total = 0;
+        let topY = Infinity;
+        let x = null;
+        data.datasets.forEach((ds, dsIndex) => {
+          const val = Number(ds.data[i]) || 0;
+          total += val;
+          const meta = chart.getDatasetMeta(dsIndex);
+          const el = meta && meta.data && meta.data[i];
+          if(el && !meta.hidden && el.y < topY){ topY = el.y; x = el.x; }
+        });
+        if(x !== null && isFinite(topY) && total !== 0){
+          const text = options.formatter ? options.formatter(total) : String(total);
+          ctx.fillText(text, x, topY - (options.offset || 6));
+        }
+      });
+      ctx.restore();
+    }
+  };
+  Chart.register(stackedTotalPlugin);
+
   function buildChartConfig(){
     const labels = state.data.map(d => d.label);
-    const values = state.data.map(d => Number(d.value));
     const isPie = state.chartType === 'doughnut' || state.chartType === 'pie';
     const actualType = state.chartType === 'area' ? 'line' : state.chartType;
+    const categories = state.categories.length ? state.categories : ['Value'];
+    const isStacked = state.chartType === 'bar' && !!state.stacked;
 
-    let backgroundColor;
+    let datasets;
     if(isPie){
-      backgroundColor = generatePalette(values.length, state.colors.line);
-    } else if(state.chartType === 'bar'){
-      backgroundColor = state.colors.line;
+      // Pie / doughnut can only visualize a single measure — let the user
+      // pick which category to display when there is more than one.
+      const catIdx = Math.min(Math.max(Number(state.pieCategoryIndex) || 0, 0), categories.length - 1);
+      const values = state.data.map(d => Number(d.values[catIdx]));
+      const baseColor = state.categoryColors[catIdx] || state.categoryColors[0] || '#525EA7';
+      datasets = [{
+        label: categories[catIdx],
+        data: values,
+        backgroundColor: generatePalette(values.length, baseColor),
+        borderColor: '#FFFFFF',
+        borderWidth: 1,
+        hoverOffset: 6
+      }];
     } else {
-      const shouldFill = state.chartType === 'area' || state.fillArea;
-      backgroundColor = shouldFill ? hexToRgba(state.colors.line, 0.16) : hexToRgba(state.colors.line, 0);
+      datasets = categories.map((catName, idx) => {
+        const values = state.data.map(d => Number(d.values[idx]));
+        const color = state.categoryColors[idx] || CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length];
+        let backgroundColor;
+        if(state.chartType === 'bar'){
+          backgroundColor = color;
+        } else {
+          const shouldFill = state.chartType === 'area' || state.fillArea;
+          const fillAlpha = categories.length > 1 ? 0.14 : 0.16;
+          backgroundColor = shouldFill ? hexToRgba(color, fillAlpha) : hexToRgba(color, 0);
+        }
+        return {
+          label: catName,
+          data: values,
+          borderColor: color,
+          backgroundColor: backgroundColor,
+          borderWidth: Number(state.lineWidth),
+          pointBackgroundColor: color,
+          pointBorderColor: color,
+          pointStyle: state.showPoints ? state.pointStyle : false,
+          pointRadius: (actualType === 'line') ? (state.showPoints ? Number(state.pointSize) : 0) : undefined,
+          pointHoverRadius: (actualType === 'line') ? (state.showPoints ? Number(state.pointSize)+2 : 0) : undefined,
+          tension: (actualType === 'line' && state.smoothLine) ? 0.4 : 0,
+          fill: actualType === 'line' ? (state.chartType === 'area' ? true : state.fillArea) : undefined,
+          borderRadius: state.chartType === 'bar' ? 4 : 0,
+          maxBarThickness: state.chartType === 'bar' ? 56 : undefined
+        };
+      });
     }
 
-    const dataset = {
-      label: state.title || 'Dataset',
-      data: values,
-      borderColor: state.colors.line,
-      backgroundColor: backgroundColor,
-      borderWidth: isPie ? 1 : Number(state.lineWidth),
-      pointBackgroundColor: state.colors.point,
-      pointBorderColor: state.colors.point,
-      pointStyle: state.showPoints ? state.pointStyle : false,
-      pointRadius: (actualType === 'line') ? (state.showPoints ? Number(state.pointSize) : 0) : undefined,
-      pointHoverRadius: (actualType === 'line') ? (state.showPoints ? Number(state.pointSize)+2 : 0) : undefined,
-      tension: (actualType === 'line' && state.smoothLine) ? 0.4 : 0,
-      fill: actualType === 'line' ? (state.chartType === 'area' ? true : state.fillArea) : undefined,
-      borderRadius: state.chartType === 'bar' ? 4 : 0,
-      maxBarThickness: state.chartType === 'bar' ? 56 : undefined,
-      hoverOffset: isPie ? 6 : 0
-    };
+    // Y-axis scaling is computed from every category's values combined, so
+    // the axis stays proportional no matter how many categories are shown.
+    const allValues = isPie
+      ? datasets[0].data
+      : state.data.flatMap(d => (d.values || []).map(Number));
 
     return {
       type: actualType,
-      data: { labels, datasets: [dataset] },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         animation: { duration: 350 },
-        layout: { padding: { top: state.subtitle ? 48 : 38, right: 26, bottom: 12, left: 12 } },
+        layout: { padding: { top: state.subtitle ? 48 : (isStacked ? 42 : 38), right: 26, bottom: 12, left: 12 } },
         plugins: {
           title: {
             display: !!state.title,
@@ -743,38 +846,61 @@
             }
           },
           datalabels: {
-            display: state.showDataLabels,
-            color: isPie ? '#FFFFFF' : '#1f2937',
-            font: { family: "'Montserrat', sans-serif", size: 10.5, weight: '700' },
-            anchor: isPie ? 'center' : 'end',
-            align: isPie ? 'center' : 'top',
-            offset: 10,
+            display(ctx){
+              if(!state.showDataLabels) return false;
+              if(isStacked){
+                const v = Number(ctx.dataset.data[ctx.dataIndex]);
+                return v !== 0; // hide labels on empty stack segments to avoid clutter
+              }
+              return true;
+            },
+            color: isStacked ? '#FFFFFF' : (isPie ? '#FFFFFF' : '#1f2937'),
+            font: { family: "'Montserrat', sans-serif", size: isStacked ? 11 : 10.5, weight: '700' },
+            anchor: isStacked ? 'center' : (isPie ? 'center' : 'end'),
+            align: isStacked ? 'center' : (isPie ? 'center' : 'top'),
+            offset: isStacked ? 0 : 10,
             clamp: true,
             clip: false,
             formatter(value){
               return formatValue(value, state.dataFormat);
             }
           },
-          customCanvasBackgroundColor: { color: state.colors.background || '#FFFFFF' }
+          customCanvasBackgroundColor: { color: state.colors.background || '#FFFFFF' },
+          stackedTotalLabels: {
+            display: isStacked && state.showDataLabels,
+            color: '#1f2937',
+            font: "700 12px 'Montserrat', sans-serif",
+            offset: 8,
+            formatter: v => formatValue(v, state.dataFormat)
+          }
         },
         scales: isPie ? {} : {
           x: {
+            stacked: isStacked,
             title: { display: !!state.xAxisLabel, text: state.xAxisLabel, font: { family: "'Montserrat', sans-serif", weight:'600' }, color: '#4b5563' },
             grid: { display: state.showGrid, color: state.colors.grid },
             ticks: { color: '#4b5563', font: { family: "'Montserrat', sans-serif" } }
           },
           y: (() => {
             const yScale = {
+              stacked: isStacked,
               title: { display: !!state.yAxisLabel, text: state.yAxisLabel, font: { family: "'Montserrat', sans-serif", weight:'600' }, color: '#4b5563' },
               grid: { display: state.showGrid, color: state.colors.grid },
               ticks: { color: '#4b5563', font: { family: "'Montserrat', sans-serif" }, callback: v => formatValue(v, state.dataFormat) }
             };
-            if(actualType === 'line'){
-              const range = calculateYAxisRange(values);
+            if(actualType === 'bar'){
+              yScale.beginAtZero = true;
+              if(isStacked){
+                // Leave headroom above the tallest stack so the total label
+                // drawn on top never gets clipped by the chart edge.
+                const totals = state.data.map(d => (d.values || []).reduce((a,b) => a + (Number(b) || 0), 0));
+                const maxTotal = totals.length ? Math.max(...totals) : 0;
+                if(maxTotal > 0) yScale.max = maxTotal * 1.18;
+              }
+            } else if(actualType === 'line'){
+              const range = calculateYAxisRange(allValues);
               yScale.min = range.min;
               yScale.max = range.max;
-            } else if(actualType === 'bar'){
-              yScale.beginAtZero = true;
             }
             return yScale;
           })()
@@ -788,7 +914,7 @@
   ============================================================ */
 
   function renderChart(){
-    const validation = validateData(state.data);
+    const validation = validateData(state.data, state.categories);
     const emptyState = byId('emptyState');
 
     if(!validation.valid){
@@ -812,11 +938,11 @@
   }
 
   function updateStatsBar(){
-    const values = state.data.map(d => Number(d.value)).filter(v => !isNaN(v));
+    const allValues = state.data.flatMap(d => (d.values || []).map(Number)).filter(v => !isNaN(v));
     const el = byId('statsBar');
-    if(values.length === 0){ el.innerHTML = ''; return; }
-    const min = Math.min(...values), max = Math.max(...values);
-    const avg = values.reduce((a,b)=>a+b,0) / values.length;
+    if(allValues.length === 0){ el.innerHTML = ''; return; }
+    const min = Math.min(...allValues), max = Math.max(...allValues);
+    const avg = allValues.reduce((a,b)=>a+b,0) / allValues.length;
 
     const card = (icon, label, value) => `
       <div class="pixel-border bg-white px-3.5 py-2.5 flex items-center gap-2.5">
@@ -828,7 +954,8 @@
       </div>`;
 
     el.innerHTML =
-      card('hash', 'Points', values.length) +
+      card('tags', 'Categories', state.categories.length) +
+      card('hash', 'Rows', state.data.length) +
       card('arrow-down-circle', 'Min', formatValue(min, state.dataFormat)) +
       card('arrow-up-circle', 'Max', formatValue(max, state.dataFormat)) +
       card('gauge', 'Average', formatValue(avg, state.dataFormat));
@@ -837,16 +964,104 @@
   }
 
   /* ============================================================
+     UI RENDERING: CATEGORIES
+  ============================================================ */
+
+  function renderCategoryChips(){
+    const el = byId('categoryChips');
+    el.innerHTML = state.categories.map((name, i) => `
+      <div class="pixel-btn bg-white px-2 py-1.5 flex items-center gap-1.5">
+        <input type="color" class="cat-color-input" data-index="${i}" value="${state.categoryColors[i] || '#525EA7'}" title="Category color">
+        <input type="text" class="cat-name-input font-body text-xs font-semibold bg-transparent border-0 outline-none w-[74px]" data-index="${i}" value="${escapeHtml(name)}" placeholder="Category">
+        <button type="button" class="remove-category-btn text-red-600 ${state.categories.length <= 1 ? 'opacity-30 pointer-events-none' : ''}" data-index="${i}" title="Remove category" aria-label="Remove category ${escapeHtml(name)}">
+          <i data-lucide="x" class="w-3 h-3 pointer-events-none"></i>
+        </button>
+      </div>
+    `).join('');
+    refreshIcons();
+  }
+
+  byId('categoryChips').addEventListener('input', (e) => {
+    const t = e.target;
+    const idx = Number(t.dataset.index);
+    if(isNaN(idx) || state.categories[idx] === undefined) return;
+    if(t.matches('.cat-name-input')){
+      state.categories[idx] = t.value;
+      renderTable();
+      updatePieCategoryVisibility();
+      renderChart();
+    } else if(t.matches('.cat-color-input')){
+      state.categoryColors[idx] = t.value;
+      renderChart();
+    }
+  });
+
+  byId('categoryChips').addEventListener('click', (e) => {
+    const btn = e.target.closest('.remove-category-btn');
+    if(btn && state.categories.length > 1){
+      const idx = Number(btn.dataset.index);
+      state.categories.splice(idx, 1);
+      state.categoryColors.splice(idx, 1);
+      state.data.forEach(row => { if(Array.isArray(row.values)) row.values.splice(idx, 1); });
+      if(state.pieCategoryIndex >= state.categories.length) state.pieCategoryIndex = 0;
+      renderCategoryChips();
+      renderTable();
+      updatePieCategoryVisibility();
+      renderChart();
+    }
+  });
+
+  byId('addCategoryBtn').addEventListener('click', () => {
+    const newIndex = state.categories.length;
+    state.categories.push(`Category ${newIndex + 1}`);
+    state.categoryColors.push(CATEGORY_PALETTE[newIndex % CATEGORY_PALETTE.length]);
+    state.data.forEach(row => {
+      if(!Array.isArray(row.values)) row.values = [];
+      row.values.push(0);
+    });
+    renderCategoryChips();
+    renderTable();
+    updatePieCategoryVisibility();
+    renderChart();
+  });
+
+  function updatePieCategoryVisibility(){
+    const isPie = state.chartType === 'doughnut' || state.chartType === 'pie';
+    const show = isPie && state.categories.length > 1;
+    byId('pieCategoryField').classList.toggle('hidden', !show);
+    if(show){
+      const select = byId('pieCategorySelect');
+      select.innerHTML = state.categories.map((name, i) => `<option value="${i}">${escapeHtml(name)}</option>`).join('');
+      select.value = String(Math.min(state.pieCategoryIndex, state.categories.length - 1));
+    }
+  }
+
+  function updateStackedFieldVisibility(){
+    byId('stackedField').classList.toggle('hidden', state.chartType !== 'bar');
+  }
+
+  /* ============================================================
      UI RENDERING: DATA TABLE
   ============================================================ */
 
   function renderTable(){
+    const thead = byId('dataTableHead');
+    thead.innerHTML = `
+      <tr class="text-left text-[10px] uppercase tracking-wide text-ink/60 border-b-[3px] border-ink">
+        <th class="py-2 pr-2 w-8">No</th>
+        <th class="py-2 pr-2">Label</th>
+        ${state.categories.map(name => `<th class="py-2 pr-2">${escapeHtml(name)}</th>`).join('')}
+        <th class="py-2 w-8"></th>
+      </tr>`;
+
     const tbody = byId('dataTableBody');
     tbody.innerHTML = state.data.map((row, i) => `
       <tr class="border-b border-ink/10">
         <td class="py-1.5 pr-2 text-ink/50 text-xs font-display">${i+1}</td>
         <td class="py-1.5 pr-2"><input type="text" class="row-label pixel-input w-full px-2.5 py-1.5 text-sm" data-index="${i}" data-field="label" value="${escapeHtml(row.label)}" placeholder="e.g. Januari"></td>
-        <td class="py-1.5 pr-2"><input type="number" step="any" class="row-value pixel-input w-full px-2.5 py-1.5 text-sm" data-index="${i}" data-field="value" value="${escapeHtml(row.value)}"></td>
+        ${state.categories.map((_, catIdx) => `
+        <td class="py-1.5 pr-2"><input type="number" step="any" class="row-value pixel-input w-full px-2.5 py-1.5 text-sm" data-index="${i}" data-cat="${catIdx}" value="${escapeHtml((row.values && row.values[catIdx] !== undefined) ? row.values[catIdx] : 0)}"></td>
+        `).join('')}
         <td class="py-1.5 text-center">
           <button type="button" class="delete-row pixel-btn w-8 h-8 flex items-center justify-center text-red-600 bg-white" data-index="${i}" aria-label="Delete row ${i+1}" title="Delete row">
             <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
@@ -859,11 +1074,15 @@
 
   byId('dataTableBody').addEventListener('input', (e) => {
     const t = e.target;
-    if(t.matches('.row-label, .row-value')){
-      const idx = Number(t.dataset.index);
-      const field = t.dataset.field;
-      if(!state.data[idx]) return;
-      state.data[idx][field] = t.value;
+    const idx = Number(t.dataset.index);
+    if(!state.data[idx]) return;
+    if(t.matches('.row-label')){
+      state.data[idx].label = t.value;
+      renderChart();
+    } else if(t.matches('.row-value')){
+      const catIdx = Number(t.dataset.cat);
+      if(!Array.isArray(state.data[idx].values)) state.data[idx].values = [];
+      state.data[idx].values[catIdx] = t.value;
       renderChart();
     }
   });
@@ -892,6 +1111,9 @@
 
   function syncUIFromState(){
     syncChartTypeButtons();
+    renderCategoryChips();
+    updatePieCategoryVisibility();
+    updateStackedFieldVisibility();
 
     byId('titleInput').value = state.title;
     byId('subtitleInput').value = state.subtitle;
@@ -906,6 +1128,7 @@
     byId('showPoints').checked = state.showPoints;
     byId('smoothLine').checked = state.smoothLine;
     byId('fillArea').checked = state.fillArea;
+    byId('stackedBars').checked = state.stacked;
 
     byId('lineWidth').value = state.lineWidth;
     byId('lineWidthVal').textContent = state.lineWidth;
@@ -913,8 +1136,6 @@
     byId('pointSizeVal').textContent = state.pointSize;
     byId('pointStyle').value = state.pointStyle;
 
-    byId('colorLine').value = state.colors.line;
-    byId('colorPoint').value = state.colors.point;
     byId('colorBackground').value = state.colors.background;
     byId('colorGrid').value = state.colors.grid;
 
@@ -940,9 +1161,8 @@
     state.theme = name;
     const t = THEMES[name];
     if(t){
-      state.colors.line = t.line;
-      state.colors.point = t.point;
       state.colors.grid = t.grid;
+      state.categoryColors = state.categories.map((_, i) => t.palette[i % t.palette.length]);
     }
   }
 
@@ -963,8 +1183,6 @@
   function applyCorporatePreset(){
     const base = buildDefaultState();
     state.chartType = base.chartType;
-    state.theme = base.theme;
-    state.colors = clone(base.colors);
     state.pointStyle = base.pointStyle;
     state.showPoints = base.showPoints;
     state.showLegend = base.showLegend;
@@ -975,6 +1193,7 @@
     state.lineWidth = base.lineWidth;
     state.exportBg = base.exportBg;
     state.exportBgColor = base.exportBgColor;
+    applyTheme(base.theme); // regenerates categoryColors for the current category count
     syncUIFromState();
     renderChart();
     showToast('Corporate Performance preset applied');
@@ -1002,14 +1221,50 @@
     try{
       const raw = localStorage.getItem(LS_KEY);
       if(!raw) return null;
-      const parsed = JSON.parse(raw);
+      let parsed = JSON.parse(raw);
       if(!parsed || !Array.isArray(parsed.data) || parsed.data.length === 0) return null;
+
+      // Migrate the old single-value schema (data: [{label, value}], with
+      // a single colors.line/point) into the multi-category schema.
+      if(parsed.data[0] && parsed.data[0].values === undefined && parsed.data[0].value !== undefined){
+        parsed = Object.assign({}, parsed, {
+          data: parsed.data.map(r => ({ label: r.label, values: [Number(r.value)] })),
+          categories: ['Value'],
+          categoryColors: [ (parsed.colors && parsed.colors.line) || '#525EA7' ],
+          colors: {
+            background: (parsed.colors && parsed.colors.background) || '#FFFFFF',
+            grid: (parsed.colors && parsed.colors.grid) || '#D9E6EC'
+          },
+          pieCategoryIndex: 0
+        });
+      }
+
       // Merge with defaults so any missing/incomplete fields from an older
-      // saved state (e.g. from a previous version of this app) don't break
-      // rendering — this only fills in gaps, it never overrides valid data.
+      // saved state don't break rendering — this only fills in gaps, it
+      // never overrides valid data.
       const defaults = buildDefaultState();
       const merged = Object.assign({}, defaults, parsed);
       merged.colors = Object.assign({}, defaults.colors, parsed.colors || {});
+      merged.categories = (Array.isArray(parsed.categories) && parsed.categories.length) ? parsed.categories.slice() : clone(defaults.categories);
+
+      merged.categoryColors = Array.isArray(parsed.categoryColors) ? parsed.categoryColors.slice() : [];
+      while(merged.categoryColors.length < merged.categories.length){
+        merged.categoryColors.push(CATEGORY_PALETTE[merged.categoryColors.length % CATEGORY_PALETTE.length]);
+      }
+      merged.categoryColors = merged.categoryColors.slice(0, merged.categories.length);
+
+      // Make sure every row's values array matches the category count.
+      merged.data = merged.data.map(row => {
+        let values = Array.isArray(row.values) ? row.values.slice() : [];
+        while(values.length < merged.categories.length) values.push(0);
+        values = values.slice(0, merged.categories.length);
+        return { label: row.label, values };
+      });
+
+      if(typeof merged.pieCategoryIndex !== 'number' || merged.pieCategoryIndex >= merged.categories.length || merged.pieCategoryIndex < 0){
+        merged.pieCategoryIndex = 0;
+      }
+
       return merged;
     }catch(e){ return null; }
   }
@@ -1019,7 +1274,7 @@
   ============================================================ */
 
   function exportImage(format){
-    if(!validateData(state.data).valid){
+    if(!validateData(state.data, state.categories).valid){
       showError('Please fix the data errors before exporting.');
       return;
     }
@@ -1046,7 +1301,7 @@
   }
 
   function exportSVG(){
-    if(!validateData(state.data).valid){
+    if(!validateData(state.data, state.categories).valid){
       showError('Please fix the data errors before exporting.');
       return;
     }
@@ -1075,7 +1330,7 @@
   }
 
   function copyImage(){
-    if(!validateData(state.data).valid){
+    if(!validateData(state.data, state.categories).valid){
       showError('Please fix the data errors before copying.');
       return;
     }
@@ -1104,14 +1359,16 @@
       showError('Excel library failed to load. Check your internet connection.');
       return;
     }
-    const rows = [
-      ['Label', 'Value'],
-      ['Januari', 99.98],
-      ['Februari', 99.97],
-      ['Maret', 99.97]
-    ];
+    // Reflects the CURRENT categories/data, so it doubles as an editable
+    // export: fill it in (or add more category columns) and re-import.
+    const header = ['Label', ...state.categories];
+    const bodyRows = state.data.length
+      ? state.data.map(row => [row.label, ...state.categories.map((_, i) => (row.values && row.values[i] !== undefined) ? row.values[i] : 0)])
+      : [['Januari', ...state.categories.map(() => 0)]];
+    const rows = [header, ...bodyRows];
+
     const sheet = XLSX.utils.aoa_to_sheet(rows);
-    sheet['!cols'] = [{ wch: 20 }, { wch: 12 }];
+    sheet['!cols'] = [{ wch: 20 }, ...state.categories.map(() => ({ wch: 14 }))];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, 'Data');
     XLSX.writeFile(workbook, 'chart-data-template.xlsx');
@@ -1137,22 +1394,46 @@
         const sheet = workbook.Sheets[firstSheetName];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
 
-        // Expect column A = Label, column B = Value, starting at row 2
-        // (row 1 is treated as the header row and skipped).
-        const parsedData = rows.slice(1)
-          .map(row => ({ label: row && row[0] !== undefined ? String(row[0]).trim() : '', value: row ? row[1] : undefined }))
-          .filter(row => row.label !== '' && row.value !== undefined && row.value !== '' && !isNaN(Number(row.value)))
-          .map(row => ({ label: row.label, value: Number(row.value) }));
-
-        if(parsedData.length === 0){
-          showError('No valid data found. Make sure column A has labels and column B has numeric values, starting from row 2.');
+        if(rows.length < 2){
+          showError('The file needs a header row plus at least one data row.');
           return;
         }
 
+        // Row 1 = header: column A is "Label", every column after that is
+        // a category — its header text becomes the category name.
+        const header = rows[0];
+        const categoryNames = header.slice(1)
+          .map(h => (h === undefined || h === null || String(h).trim() === '') ? null : String(h).trim())
+          .filter(Boolean);
+
+        if(categoryNames.length === 0){
+          showError('The header row must include at least one category column after Label.');
+          return;
+        }
+
+        const parsedData = rows.slice(1)
+          .map(row => {
+            const label = row && row[0] !== undefined ? String(row[0]).trim() : '';
+            const values = categoryNames.map((_, i) => row ? row[i + 1] : undefined);
+            return { label, values };
+          })
+          .filter(row => row.label !== '' && row.values.every(v => v !== undefined && v !== '' && !isNaN(Number(v))))
+          .map(row => ({ label: row.label, values: row.values.map(Number) }));
+
+        if(parsedData.length === 0){
+          showError('No valid data found. Every row needs a Label plus a numeric value for each category column.');
+          return;
+        }
+
+        state.categories = categoryNames;
+        state.categoryColors = categoryNames.map((_, i) => CATEGORY_PALETTE[i % CATEGORY_PALETTE.length]);
         state.data = parsedData;
+        if(state.pieCategoryIndex >= categoryNames.length) state.pieCategoryIndex = 0;
+
+        syncUIFromState();
         renderTable();
         renderChart();
-        showToast(`Imported ${parsedData.length} row${parsedData.length > 1 ? 's' : ''} from Excel`);
+        showToast(`Imported ${parsedData.length} row${parsedData.length > 1 ? 's' : ''} × ${categoryNames.length} categor${categoryNames.length > 1 ? 'ies' : 'y'}`);
       }catch(err){
         showError('Failed to read the file: ' + err.message);
       }
@@ -1161,8 +1442,9 @@
     reader.readAsArrayBuffer(file);
   }
 
+
   function openFullscreen(){
-    if(!validateData(state.data).valid){
+    if(!validateData(state.data, state.categories).valid){
       showError('Please fix the data errors first.');
       return;
     }
@@ -1187,8 +1469,20 @@
       btn.addEventListener('click', () => {
         state.chartType = btn.dataset.type;
         syncChartTypeButtons();
+        updatePieCategoryVisibility();
+        updateStackedFieldVisibility();
         renderChart();
       });
+    });
+
+    byId('pieCategorySelect').addEventListener('change', e => {
+      state.pieCategoryIndex = Number(e.target.value);
+      renderChart();
+    });
+
+    byId('stackedBars').addEventListener('change', e => {
+      state.stacked = e.target.checked;
+      renderChart();
     });
 
     byId('templateSelect').addEventListener('change', e => { if(e.target.value) applyTemplate(e.target.value); });
@@ -1199,7 +1493,7 @@
     byId('dataFormatSelect').addEventListener('change', e => { state.dataFormat = e.target.value; renderChart(); });
 
     byId('addRowBtn').addEventListener('click', () => {
-      state.data.push({ label:'', value:0 });
+      state.data.push({ label:'', values: state.categories.map(() => 0) });
       renderTable();
     });
     byId('clearAllBtn').addEventListener('click', () => {
@@ -1208,18 +1502,24 @@
       renderChart();
     });
     byId('loadExampleBtn').addEventListener('click', () => {
+      state.categories = clone(EXAMPLE_CATEGORIES);
+      state.categoryColors = clone(EXAMPLE_CATEGORY_COLORS);
       state.data = clone(EXAMPLE_DATA);
+      state.pieCategoryIndex = 0;
       state.chartType = 'bar';
-      state.title = 'Pencapaian SLA per Kuartal (2025)';
+      state.stacked = true;
+      state.title = 'Jumlah Layanan per Bulan';
       state.subtitle = '';
-      state.xAxisLabel = 'Kuartal';
-      state.yAxisLabel = 'SLA (%)';
-      state.dataFormat = 'percentage';
-      applyTheme('blue');
+      state.xAxisLabel = '';
+      state.yAxisLabel = 'Jumlah Layanan';
+      state.dataFormat = 'number';
+      state.showLegend = true;
+      state.showDataLabels = true;
+      state.showGrid = true;
       syncUIFromState();
       renderTable();
       renderChart();
-      showToast('Example data loaded');
+      showToast('Stacked bar example loaded');
     });
     byId('loadDefaultBtn').addEventListener('click', () => {
       state = buildDefaultState();
@@ -1251,8 +1551,6 @@
     byId('pointSize').addEventListener('input', e => { state.pointSize = e.target.value; byId('pointSizeVal').textContent = e.target.value; renderChart(); });
     byId('pointStyle').addEventListener('change', e => { state.pointStyle = e.target.value; renderChart(); });
 
-    byId('colorLine').addEventListener('input', e => { state.colors.line = e.target.value; renderChart(); });
-    byId('colorPoint').addEventListener('input', e => { state.colors.point = e.target.value; renderChart(); });
     byId('colorBackground').addEventListener('input', e => { state.colors.background = e.target.value; renderChart(); });
     byId('colorGrid').addEventListener('input', e => { state.colors.grid = e.target.value; renderChart(); });
 
